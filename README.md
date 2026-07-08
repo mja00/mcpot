@@ -34,7 +34,7 @@ pnpm db:migrate   # apply Drizzle migrations
 ### 2. Central server
 
 ```bash
-pnpm server       # http://localhost:8080  (admin token: dev-admin-token)
+pnpm serve        # http://localhost:8080  (admin token: dev-admin-token)
 ```
 
 ### 3. Dashboard
