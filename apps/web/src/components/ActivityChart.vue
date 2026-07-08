@@ -47,5 +47,9 @@ const option = computed(() => {
 </script>
 
 <template>
-	<VChart class="h-52 w-full" :option="option" autoresize />
+	<!-- Sized wrapper: vue-echarts injects unlayered height:100% CSS that beats layered Tailwind
+	     utilities on the element itself. -->
+	<div class="h-52 w-full">
+		<VChart :option="option" autoresize />
+	</div>
 </template>
