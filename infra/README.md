@@ -20,14 +20,15 @@ docker login ghcr.io
 
 ## Central stack
 
-From the repo root:
+Configuration comes from an env file that compose auto-loads from `infra/`:
 
 ```bash
-ADMIN_TOKEN=$(openssl rand -hex 24) \
-ADMIN_PASSWORD='choose-a-strong-password' \
-SESSION_SECRET=$(openssl rand -hex 32) \
+cp infra/.env.example infra/.env
+# fill in ADMIN_TOKEN, ADMIN_PASSWORD, SESSION_SECRET (see comments in the file)
 docker compose -f infra/docker-compose.full.yml up -d
 ```
+
+Inline env vars on the command line still work and override the file.
 
 This pulls the published images; set `MCPOT_TAG` to pin a specific version (default `latest`), or
 add `--build` to build from source instead.
