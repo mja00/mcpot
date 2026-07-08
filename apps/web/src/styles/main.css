@@ -28,6 +28,17 @@
 
 	--font-sans: "IBM Plex Sans Variable", system-ui, sans-serif;
 	--font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+	/* Amber wash that fades out on rows freshly arrived over the live stream. */
+	--animate-feed-in: feed-in 1.4s ease-out;
+	@keyframes feed-in {
+		from {
+			background-color: --alpha(var(--color-accent) / 16%);
+		}
+		to {
+			background-color: transparent;
+		}
+	}
 }
 
 @layer base {
