@@ -1,0 +1,24 @@
+# Honeypot daemon image — deploy this to VPSes. Runs the TypeScript daemon natively on Node 24
+# (node:sqlite for the durable queue, no native build step). Multi-stage: build the workspace libs,
+# then run with the built artifacts.
+FROM node:24-slim AS builder
+WORKDIR /app
+RUN corepack enable
+# Install deps first (cached across source changes).
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml tsconfig.base.json ./
+COPY packages/protocol/package.json packages/protocol/
+COPY packages/shared/package.json packages/shared/
+COPY apps/daemon/package.json apps/daemon/
+RUN pnpm install --frozen-lockfile
+COPY packages ./packages
+COPY apps/daemon ./apps/daemon
+RUN pnpm --filter @mcpot/protocol --filter @mcpot/shared build
+
+FROM node:24-slim
+WORKDIR /app
+COPY --from=builder /app /app
+ENV MCPOT_STATE_DIR=/data
+# The durable queue + identity live here; mount a volume to persist across restarts.
+VOLUME /data
+EXPOSE 25565
+CMD ["node", "--experimental-transform-types", "--disable-warning=ExperimentalWarning", "apps/daemon/src/main.ts"]

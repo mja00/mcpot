@@ -10,6 +10,8 @@ export interface BuildAppOptions {
 	adminToken: string;
 	adminPassword: string;
 	sessionSecret: string;
+	abuseipdbKey?: string | null;
+	webhookUrl?: string | null;
 }
 
 /** Assemble the Fastify app. Kept db-injectable so tests run it against a throwaway database. */
@@ -18,9 +20,10 @@ export function buildApp(opts: BuildAppOptions): FastifyInstance {
 
 	app.get("/health", async () => ({ status: "ok" }));
 
+	const reportConfig = { abuseipdbKey: opts.abuseipdbKey ?? null, webhookUrl: opts.webhookUrl ?? null };
 	registerAuthRoutes(app, opts.adminPassword, opts.sessionSecret);
 	registerDaemonRoutes(app, opts.db);
-	registerAdminRoutes(app, opts.db, opts.adminToken, opts.sessionSecret);
+	registerAdminRoutes(app, opts.db, opts.adminToken, opts.sessionSecret, reportConfig);
 	registerReadRoutes(app, opts.db, opts.adminToken, opts.sessionSecret);
 
 	return app;

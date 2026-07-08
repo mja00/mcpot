@@ -78,7 +78,12 @@ export interface Offender {
 	hits: number;
 	logins: number;
 	daemonsHit: number;
+	rawHostnameHits: number;
+	abnormalProtoHits: number;
+	distinctUsernames: number;
 	lastSeen: string;
+	score: number;
+	classification: "scanner" | "suspicious" | "prober";
 }
 
 export const fetchStats = (windowMinutes = 60) => req<Stats>(`/v1/stats?windowMinutes=${windowMinutes}`);
@@ -95,3 +100,5 @@ export const fetchConnections = (params: { limit?: number; srcIp?: string; daemo
 };
 export const revokeDaemon = (id: string) => req<void>(`/v1/admin/daemons/${id}/revoke`, { method: "POST", body: "{}" });
 export const createToken = () => req<{ token: string }>(`/v1/admin/tokens`, { method: "POST", body: "{}" });
+export const reportOffender = (srcIp: string) =>
+	req<{ reported: boolean; sinks: string[] }>(`/v1/admin/report`, { method: "POST", body: JSON.stringify({ srcIp }) });

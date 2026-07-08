@@ -1,0 +1,20 @@
+# Central server image. Runs TypeScript natively on Node 24. Applies migrations on boot (via the
+# drizzle-orm migrator — no drizzle-kit CLI needed at runtime) then starts the API.
+FROM node:24-slim AS builder
+WORKDIR /app
+RUN corepack enable
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml tsconfig.base.json ./
+COPY packages/protocol/package.json packages/protocol/
+COPY packages/shared/package.json packages/shared/
+COPY apps/server/package.json apps/server/
+RUN pnpm install --frozen-lockfile
+COPY packages ./packages
+COPY apps/server ./apps/server
+RUN pnpm --filter @mcpot/protocol --filter @mcpot/shared build
+
+FROM node:24-slim
+WORKDIR /app
+COPY --from=builder /app /app
+ENV HOST=0.0.0.0 PORT=8080
+EXPOSE 8080
+CMD ["sh", "-c", "node --experimental-transform-types --disable-warning=ExperimentalWarning apps/server/src/db/migrate.ts && node --experimental-transform-types --disable-warning=ExperimentalWarning apps/server/src/main.ts"]

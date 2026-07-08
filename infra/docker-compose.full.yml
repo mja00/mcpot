@@ -1,0 +1,47 @@
+# Full central stack: Postgres + server (API, migrates on boot) + web (dashboard). Daemons are NOT
+# here — they deploy to VPSes from Dockerfile.daemon (see infra/README.md). Build context is the repo
+# root: run from there with `docker compose -f infra/docker-compose.full.yml up --build`.
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: mcpot
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mcpot}
+      POSTGRES_DB: mcpot
+    volumes:
+      - mcpot_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mcpot -d mcpot"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  server:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.server
+    environment:
+      DATABASE_URL: postgres://mcpot:${POSTGRES_PASSWORD:-mcpot}@postgres:5432/mcpot
+      ADMIN_TOKEN: ${ADMIN_TOKEN:?set ADMIN_TOKEN}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD}
+      SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET}
+      RETENTION_DAYS: ${RETENTION_DAYS:-90}
+      ABUSEIPDB_KEY: ${ABUSEIPDB_KEY:-}
+      WEBHOOK_URL: ${WEBHOOK_URL:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+
+  web:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.web
+    depends_on:
+      - server
+    ports:
+      - "8081:80"
+
+volumes:
+  mcpot_pg:

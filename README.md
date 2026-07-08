@@ -83,6 +83,11 @@ Point a real Minecraft client (Java 1.20.2+) at `127.0.0.1:25565` — the server
 server (status ping), and clicking Join is captured as a login (username + UUID). Every connection
 flows daemon → server → Postgres and appears on the dashboard within a few seconds.
 
+## Deployment
+
+Production deployment (Docker images for the central stack + daemons, enrollment, retention,
+reporting, and compliance notes) is documented in [`infra/README.md`](infra/README.md).
+
 ## Development
 
 ```bash

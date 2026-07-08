@@ -15,6 +15,11 @@ export interface ServerConfig {
 	adminPassword: string;
 	/** HMAC key for signing dashboard session tokens. */
 	sessionSecret: string;
+	/** Raw connection events older than this are purged daily (PII retention + table growth). */
+	retentionDays: number;
+	/** Optional reporting sinks; reporting is manual/gated and no-ops when unset. */
+	abuseipdbKey: string | null;
+	webhookUrl: string | null;
 }
 
 export function loadServerConfig(): ServerConfig {
@@ -33,5 +38,8 @@ export function loadServerConfig(): ServerConfig {
 		adminToken,
 		adminPassword,
 		sessionSecret,
+		retentionDays: envInt("RETENTION_DAYS", 90),
+		abuseipdbKey: process.env.ABUSEIPDB_KEY ?? null,
+		webhookUrl: process.env.WEBHOOK_URL ?? null,
 	};
 }

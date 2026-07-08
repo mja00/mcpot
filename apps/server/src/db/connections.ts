@@ -3,6 +3,7 @@ import type { ConnectionEvent } from "@mcpot/shared";
 import type { Db } from "./client.ts";
 import { connections } from "./schema.ts";
 import { sanitizeString, toInetOrNull } from "../sanitize.ts";
+import { type Classification, classify } from "../classify.ts";
 
 export interface IngestResult {
 	accepted: number;
@@ -120,12 +121,23 @@ export interface Offender {
 	hits: number;
 	logins: number;
 	daemonsHit: number;
+	rawHostnameHits: number;
+	abnormalProtoHits: number;
+	distinctUsernames: number;
 	lastSeen: Date;
+	score: number;
+	classification: Classification;
 }
 
-/** Top source IPs by connection count over the window — a basic offenders list (scoring lands in M6). */
+/**
+ * Top source IPs over the window with a scanner classification. `since` defaults to a rolling window;
+ * pass a UTC day boundary for the "daily rotating" offenders list. Classification signals are computed
+ * in one aggregation pass (raw-IP hostname, abnormal protocol, distinct usernames) and scored in JS.
+ */
 export async function getOffenders(db: Db, windowHours: number, limit: number): Promise<Offender[]> {
 	const since = new Date(Date.now() - windowHours * 3_600_000);
+	// A raw-IP hostname means the client connected by IP literal, not a domain — a scanner tell.
+	const rawHostnameHits = sql<number>`count(*) filter (where ${connections.serverAddress} ~ '^[0-9]{1,3}(\\.[0-9]{1,3}){3}$' or ${connections.serverAddress} ~ ':')`;
 	const rows = await db
 		.select({
 			srcIp: connections.srcIp,
@@ -133,19 +145,28 @@ export async function getOffenders(db: Db, windowHours: number, limit: number): 
 			logins: sql<number>`count(*) filter (where ${connections.intent} = 'login')`,
 			daemonsHit: countDistinct(connections.daemonId),
 			lastSeen: sql<Date>`max(${connections.receivedAt})`,
+			rawHostnameHits,
+			abnormalProtoHits: sql<number>`count(*) filter (where ${connections.protocolVersion} is null or ${connections.protocolVersion} <= 0)`,
+			distinctUsernames: sql<number>`count(distinct ${connections.username})`,
 		})
 		.from(connections)
 		.where(gte(connections.receivedAt, since))
 		.groupBy(connections.srcIp)
 		.orderBy(desc(count()))
 		.limit(Math.min(limit, 500));
-	return rows.map((r) => ({
-		srcIp: r.srcIp,
-		hits: Number(r.hits),
-		logins: Number(r.logins),
-		daemonsHit: Number(r.daemonsHit),
-		lastSeen: new Date(r.lastSeen),
-	}));
+
+	return rows.map((r) => {
+		const signals = {
+			hits: Number(r.hits),
+			logins: Number(r.logins),
+			daemonsHit: Number(r.daemonsHit),
+			rawHostnameHits: Number(r.rawHostnameHits),
+			abnormalProtoHits: Number(r.abnormalProtoHits),
+			distinctUsernames: Number(r.distinctUsernames),
+		};
+		const { score, label } = classify(signals);
+		return { srcIp: r.srcIp, ...signals, lastSeen: new Date(r.lastSeen), score, classification: label };
+	});
 }
 
 export interface Stats {
