@@ -12,6 +12,7 @@ import {
 	type RecentConnection,
 } from "../api";
 import { useAuthGuard } from "../composables/useAuthGuard";
+import { useEventStream } from "../composables/useEventStream";
 import { isOnline, timeAgo } from "../lib/format";
 import PageHeader from "../components/PageHeader.vue";
 import StatTile from "../components/StatTile.vue";
@@ -20,6 +21,7 @@ import Panel from "../components/Panel.vue";
 import ConnectionsTable from "../components/ConnectionsTable.vue";
 import ActivityChart from "../components/ActivityChart.vue";
 import CountryFlag from "../components/CountryFlag.vue";
+import LiveIndicator from "../components/LiveIndicator.vue";
 import StatusDot from "../components/StatusDot.vue";
 import UiBadge from "../components/ui/UiBadge.vue";
 
@@ -28,6 +30,7 @@ const overview = ref<OverviewResponse | null>(null);
 const connections = ref<RecentConnection[]>([]);
 const daemons = ref<DaemonListItem[]>([]);
 const offenders = ref<Offender[]>([]);
+const freshIds = ref(new Set<string>());
 let timer: ReturnType<typeof setInterval> | undefined;
 
 async function refresh(): Promise<void> {
@@ -43,6 +46,31 @@ async function refresh(): Promise<void> {
 	if (off) offenders.value = off;
 }
 
+// SSE drives the live feed; windowed aggregates stay poll-based because events also age *out* of
+// the window — the server's SQL is the source of truth, the stream just makes arrivals instant.
+const { status: streamStatus } = useEventStream({
+	onConnection(event) {
+		if (connections.value.some((c) => c.eventId === event.eventId)) return;
+		connections.value = [event, ...connections.value].slice(0, 50);
+		freshIds.value = new Set(freshIds.value).add(event.eventId);
+		setTimeout(() => {
+			const next = new Set(freshIds.value);
+			next.delete(event.eventId);
+			freshIds.value = next;
+		}, 1600);
+	},
+	onDaemon(status) {
+		const d = daemons.value.find((x) => x.id === status.daemonId);
+		if (d) {
+			d.lastSeenAt = status.lastSeenAt;
+			d.queueDepth = status.queueDepth;
+		}
+	},
+	onResync() {
+		void refresh();
+	},
+});
+
 const spark = computed(() => overview.value?.series.map((b) => b.total) ?? []);
 const stats = computed(() => overview.value?.stats ?? null);
 const onlineCount = computed(() => daemons.value.filter((d) => !d.revoked && isOnline(d.lastSeenAt)).length);
@@ -54,7 +82,8 @@ const classTone = { scanner: "critical", suspicious: "warn", prober: "neutral" }
 
 onMounted(() => {
 	void refresh();
-	timer = setInterval(() => void refresh(), 5000);
+	// Slow heartbeat poll — arrivals come over SSE; this keeps the windowed aggregates honest.
+	timer = setInterval(() => void refresh(), 30_000);
 });
 onUnmounted(() => timer && clearInterval(timer));
 </script>
@@ -80,8 +109,11 @@ onUnmounted(() => timer && clearInterval(timer));
 
 		<div class="grid grid-cols-3 gap-4 max-lg:grid-cols-1">
 			<div class="col-span-2 flex flex-col gap-4 max-lg:col-span-1">
-				<Panel title="Recent connections">
-					<ConnectionsTable :rows="connections" />
+				<Panel title="Live connections">
+					<template #actions>
+						<LiveIndicator :status="streamStatus" />
+					</template>
+					<ConnectionsTable :rows="connections" :fresh-ids="freshIds" />
 				</Panel>
 				<Panel title="Activity · last 60m">
 					<ActivityChart v-if="overview && overview.series.length" :series="overview.series" />

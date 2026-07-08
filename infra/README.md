@@ -38,6 +38,21 @@ add `--build` to build from source instead.
 - The server migrates the database on boot and runs the daily retention purge (`RETENTION_DAYS`, default 90).
 - Optional reporting sinks: set `ABUSEIPDB_KEY` and/or `WEBHOOK_URL`. Reporting is **manual** (a button per offender) — never automatic.
 
+### GeoIP enrichment (optional)
+
+Set `MAXMIND_ACCOUNT_ID` and `MAXMIND_LICENSE_KEY` (free GeoLite2 account) in `infra/.env` and the
+`geoipupdate` sidecar keeps GeoLite2-Country/ASN databases fresh on a shared volume; the server
+hot-reloads them and stamps `country_code`/`asn`/`as_org` on new connections. Without credentials
+everything works, the geo columns just stay null. For local dev, drop the `.mmdb` files into a
+directory and point `GEOIP_DIR` at it.
+
+To geo-tag rows ingested before enrichment existed (re-runnable, `--dry-run` supported):
+
+```bash
+docker compose -f infra/docker-compose.full.yml exec server \
+  node --experimental-transform-types src/scripts/backfill-geo.ts
+```
+
 Put the server/dashboard behind TLS (a reverse proxy) before exposing them publicly. When the proxy
 runs on the same machine, layer `docker-compose.local-bind.yml` on top: it unpublishes the server
 entirely (the dashboard's nginx proxies `/v1/` to it over the compose network) and binds the
