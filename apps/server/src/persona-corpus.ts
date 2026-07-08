@@ -41,6 +41,18 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
     "country": "JP"
   },
   {
+    "versionName": "Beta 1.7.3",
+    "protocol": 774,
+    "motd": "BetaMC - True and Real Beta 1.7.3\nJoin our Discord! betamc.org/discord",
+    "maxPlayers": 100,
+    "online": 11,
+    "hasFavicon": true,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": -300,
+    "country": "US"
+  },
+  {
     "versionName": "Paper 26.2",
     "protocol": 776,
     "motd": "The adventure continues",
@@ -75,6 +87,42 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
     "port": 25642,
     "utcOffsetMinutes": 0,
     "country": "NL"
+  },
+  {
+    "versionName": "Gratopia",
+    "protocol": 774,
+    "motd": "GRATOPIA | [1.21-26.2]\nNo Griefing • Your Favorite Community",
+    "maxPlayers": 500,
+    "online": 25,
+    "hasFavicon": true,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": 0,
+    "country": "US"
+  },
+  {
+    "versionName": "Waterfall 1.7.x - 1.21.x",
+    "protocol": 773,
+    "motd": "SLAZE! ✩ loja.slaze.net\nO P4Free está aberto para jogar!",
+    "maxPlayers": 600,
+    "online": 53,
+    "hasFavicon": true,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": 0,
+    "country": "US"
+  },
+  {
+    "versionName": "26.2",
+    "protocol": 776,
+    "motd": "who up crafting they synths",
+    "maxPlayers": 50,
+    "online": 5,
+    "hasFavicon": true,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": 0,
+    "country": "US"
   },
   {
     "versionName": "§x§2§e§7§e§f§f§l0/100",
@@ -149,6 +197,18 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
     "country": "DE"
   },
   {
+    "versionName": "Velocity 1.7.2-1.21.11",
+    "protocol": 774,
+    "motd": "            ▪▪ VanillaMC *「1.8x - 1.21x 」▪▪\n||| New Gamemode Released Lifesteal 1.21.8 |||",
+    "maxPlayers": 300,
+    "online": 30,
+    "hasFavicon": true,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": -420,
+    "country": "US"
+  },
+  {
     "versionName": "1.21.11",
     "protocol": 774,
     "motd": "A Minecraft Server",
@@ -156,6 +216,42 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
     "online": 0,
     "hasFavicon": false,
     "enforcesSecureChat": true,
+    "port": 25565,
+    "utcOffsetMinutes": -300,
+    "country": "US"
+  },
+  {
+    "versionName": "Velocity 1.7.2-26.2",
+    "protocol": 774,
+    "motd": "                     BugMC | 26.2!\n           sᴜʀᴠɪᴠᴀʟ 🐝 ᴅɪsᴄᴏʀᴅ.ʙᴜɢᴍᴄ.ɴᴇᴛ",
+    "maxPlayers": 200,
+    "online": 85,
+    "hasFavicon": true,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": 0,
+    "country": "US"
+  },
+  {
+    "versionName": "Paper 1.21.11",
+    "protocol": 774,
+    "motd": "ok now THIS is epic",
+    "maxPlayers": 20,
+    "online": 2,
+    "hasFavicon": false,
+    "enforcesSecureChat": true,
+    "port": 25565,
+    "utcOffsetMinutes": -480,
+    "country": "US"
+  },
+  {
+    "versionName": "§aJoin here ->                                                     §fPlayers: §a31/1000",
+    "protocol": 774,
+    "motd": "                  VALTERION [1.16 | 1.21]               \n   SURVIVAL CUSTOM + PASCUA ACABANDO   ",
+    "maxPlayers": 2027,
+    "online": 31,
+    "hasFavicon": true,
+    "enforcesSecureChat": false,
     "port": 25565,
     "utcOffsetMinutes": -300,
     "country": "US"
@@ -233,6 +329,30 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
     "country": "US"
   },
   {
+    "versionName": "Velocity 1.7.2-26.1.2",
+    "protocol": 774,
+    "motd": "         VikingCraft - Survival [1.8 à 1.21]\n   ☠ Plongez dans l'univers de la survie viking ! ☠",
+    "maxPlayers": 500,
+    "online": 43,
+    "hasFavicon": true,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": 0,
+    "country": "FR"
+  },
+  {
+    "versionName": "Velocity 1.7.2-26.1.1",
+    "protocol": 774,
+    "motd": ".\n.",
+    "maxPlayers": 500,
+    "online": 4,
+    "hasFavicon": true,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": 420,
+    "country": "SG"
+  },
+  {
     "versionName": "Paper 1.21.11",
     "protocol": 774,
     "motd": "A Minecraft Server",
@@ -242,6 +362,18 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
     "enforcesSecureChat": true,
     "port": 25565,
     "utcOffsetMinutes": 0,
+    "country": "US"
+  },
+  {
+    "versionName": "26.2",
+    "protocol": 776,
+    "motd": "Thanks!",
+    "maxPlayers": 50,
+    "online": 2,
+    "hasFavicon": false,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": -300,
     "country": "US"
   },
   {
@@ -279,6 +411,18 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
     "port": 25565,
     "utcOffsetMinutes": 0,
     "country": "FR"
+  },
+  {
+    "versionName": "Paper 26.1.2",
+    "protocol": 775,
+    "motd": "A fresh start...",
+    "maxPlayers": 50,
+    "online": 6,
+    "hasFavicon": false,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": -480,
+    "country": "US"
   },
   {
     "versionName": "Folia 1.21.11",
@@ -377,6 +521,54 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
     "country": "US"
   },
   {
+    "versionName": "26.2",
+    "protocol": 776,
+    "motd": "The Falkenverse",
+    "maxPlayers": 20,
+    "online": 2,
+    "hasFavicon": false,
+    "enforcesSecureChat": true,
+    "port": 25565,
+    "utcOffsetMinutes": -360,
+    "country": "US"
+  },
+  {
+    "versionName": "1.21.1",
+    "protocol": 767,
+    "motd": "A Minecraft Server",
+    "maxPlayers": 9999,
+    "online": 3,
+    "hasFavicon": true,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": 0,
+    "country": "US"
+  },
+  {
+    "versionName": "1.21.1",
+    "protocol": 767,
+    "motd": "A Minecraft Server",
+    "maxPlayers": 20,
+    "online": 2,
+    "hasFavicon": true,
+    "enforcesSecureChat": true,
+    "port": 25565,
+    "utcOffsetMinutes": -300,
+    "country": "US"
+  },
+  {
+    "versionName": "1.21.1",
+    "protocol": 767,
+    "motd": "Official Summer 2026 Judgement Server",
+    "maxPlayers": 99,
+    "online": 5,
+    "hasFavicon": true,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": -300,
+    "country": "US"
+  },
+  {
     "versionName": "1.21.1",
     "protocol": 767,
     "motd": "WELCOME TO THE ISLAND",
@@ -384,6 +576,54 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
     "online": 0,
     "hasFavicon": false,
     "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": -300,
+    "country": "US"
+  },
+  {
+    "versionName": "1.20.1",
+    "protocol": 763,
+    "motd": "big brother is watching",
+    "maxPlayers": 20,
+    "online": 2,
+    "hasFavicon": false,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": -300,
+    "country": "CA"
+  },
+  {
+    "versionName": "1.21.1",
+    "protocol": 767,
+    "motd": ":: The vacation of a lifetime... however long that is. ::",
+    "maxPlayers": 150,
+    "online": 13,
+    "hasFavicon": false,
+    "enforcesSecureChat": true,
+    "port": 25565,
+    "utcOffsetMinutes": 0,
+    "country": "US"
+  },
+  {
+    "versionName": "Purpur 1.21.11",
+    "protocol": 774,
+    "motd": "Welcome to Ender SMP",
+    "maxPlayers": 20,
+    "online": 2,
+    "hasFavicon": true,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": -360,
+    "country": "US"
+  },
+  {
+    "versionName": "1.20.1",
+    "protocol": 763,
+    "motd": "An Otherworld Server",
+    "maxPlayers": 20,
+    "online": 5,
+    "hasFavicon": true,
+    "enforcesSecureChat": true,
     "port": 25565,
     "utcOffsetMinutes": -300,
     "country": "US"
@@ -401,6 +641,30 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
     "country": "CA"
   },
   {
+    "versionName": "Velocity 1.7.2-26.2",
+    "protocol": 774,
+    "motd": "          » TIMANTTIMIEKKA • { 1.21.11+ } «\n               Tule vaikka tänne pelaamaan!",
+    "maxPlayers": 7,
+    "online": 6,
+    "hasFavicon": true,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": 120,
+    "country": "FI"
+  },
+  {
+    "versionName": "1.21.1",
+    "protocol": 767,
+    "motd": "A Minecraft Server",
+    "maxPlayers": 40,
+    "online": 17,
+    "hasFavicon": false,
+    "enforcesSecureChat": true,
+    "port": 25565,
+    "utcOffsetMinutes": 60,
+    "country": "DE"
+  },
+  {
     "versionName": "1.20.1",
     "protocol": 763,
     "motd": "A Minecraft Server",
@@ -411,6 +675,54 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
     "port": 25565,
     "utcOffsetMinutes": 60,
     "country": "SE"
+  },
+  {
+    "versionName": "1.7.10",
+    "protocol": 5,
+    "motd": "GT:New Horizons 2.8.4",
+    "maxPlayers": 20,
+    "online": 3,
+    "hasFavicon": true,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": 0,
+    "country": "GB"
+  },
+  {
+    "versionName": "Velocity 1.7.2-26.1.2",
+    "protocol": 774,
+    "motd": ".\n.",
+    "maxPlayers": 500,
+    "online": 21,
+    "hasFavicon": true,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": -0,
+    "country": "GB"
+  },
+  {
+    "versionName": "1.7.10",
+    "protocol": 5,
+    "motd": "GT:New Horizons 2.8.4",
+    "maxPlayers": 20,
+    "online": 2,
+    "hasFavicon": true,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": 60,
+    "country": "DE"
+  },
+  {
+    "versionName": "§6§lBig§e§lCraft",
+    "protocol": 774,
+    "motd": "   ➦ BɪɢCʀᴀꜰᴛ || 1.8-26.1+ || play.bigcraft.pro ⮪ \nВыживание ▪ Анархия ▪ РолеПлей ▪ Мини-Игры",
+    "maxPlayers": 30000,
+    "online": 726,
+    "hasFavicon": true,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": 300,
+    "country": "RU"
   },
   {
     "versionName": "26.2",
@@ -449,6 +761,42 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
     "country": "FR"
   },
   {
+    "versionName": "1.20.1",
+    "protocol": 763,
+    "motd": "A Minecraft Server",
+    "maxPlayers": 20,
+    "online": 2,
+    "hasFavicon": false,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": 60,
+    "country": "PL"
+  },
+  {
+    "versionName": "26.2",
+    "protocol": 776,
+    "motd": "MINECRAFT ETO MOYA ZHIZNJ",
+    "maxPlayers": 20,
+    "online": 2,
+    "hasFavicon": true,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": 120,
+    "country": "LV"
+  },
+  {
+    "versionName": "1.21.1",
+    "protocol": 767,
+    "motd": "All the Mods 10",
+    "maxPlayers": 20,
+    "online": 2,
+    "hasFavicon": true,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": 0,
+    "country": "FR"
+  },
+  {
     "versionName": "Purpur 1.21.11",
     "protocol": 774,
     "motd": "Season 6 (VOICECHAT)",
@@ -461,6 +809,18 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
     "country": "NL"
   },
   {
+    "versionName": "26.2",
+    "protocol": 776,
+    "motd": "A Minecraft Server",
+    "maxPlayers": 20,
+    "online": 2,
+    "hasFavicon": false,
+    "enforcesSecureChat": true,
+    "port": 25565,
+    "utcOffsetMinutes": 60,
+    "country": "SE"
+  },
+  {
     "versionName": "26.1",
     "protocol": 775,
     "motd": "A Minecraft Server",
@@ -471,6 +831,18 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
     "port": 25565,
     "utcOffsetMinutes": 0,
     "country": "JP"
+  },
+  {
+    "versionName": "1.21.11",
+    "protocol": 774,
+    "motd": "Fuck Ass Niggers",
+    "maxPlayers": 20,
+    "online": 5,
+    "hasFavicon": false,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": 180,
+    "country": "IR"
   },
   {
     "versionName": "26.1.2",
@@ -629,6 +1001,18 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
     "country": "RO"
   },
   {
+    "versionName": "§0§lOne§6§lInch §f§lNetwork",
+    "protocol": 774,
+    "motd": "                   play.oneinch.it                                                   (SMP II)",
+    "maxPlayers": 12,
+    "online": 11,
+    "hasFavicon": true,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": 60,
+    "country": "IT"
+  },
+  {
     "versionName": "Spigot 26.1.2",
     "protocol": 775,
     "motd": "A Minecraft Server",
@@ -655,6 +1039,30 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
   {
     "versionName": "1.21.1",
     "protocol": 767,
+    "motd": "A Minecraft Server",
+    "maxPlayers": 20,
+    "online": 3,
+    "hasFavicon": false,
+    "enforcesSecureChat": true,
+    "port": 25565,
+    "utcOffsetMinutes": -300,
+    "country": "US"
+  },
+  {
+    "versionName": "1.21.10",
+    "protocol": 773,
+    "motd": "A Minecraft Server :)",
+    "maxPlayers": 100,
+    "online": 2,
+    "hasFavicon": false,
+    "enforcesSecureChat": true,
+    "port": 25565,
+    "utcOffsetMinutes": -300,
+    "country": "CA"
+  },
+  {
+    "versionName": "1.21.1",
+    "protocol": 767,
     "motd": "sung sung sung tahur",
     "maxPlayers": 67,
     "online": 0,
@@ -677,6 +1085,30 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
     "country": "US"
   },
   {
+    "versionName": "BungeeCord 1.8.x-1.13.x",
+    "protocol": 404,
+    "motd": "                  像素世界公测",
+    "maxPlayers": 1,
+    "online": 18,
+    "hasFavicon": false,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": 420,
+    "country": "CN"
+  },
+  {
+    "versionName": "Purpur 1.21.4",
+    "protocol": 774,
+    "motd": "A Minecraft Server",
+    "maxPlayers": 200,
+    "online": 37,
+    "hasFavicon": false,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": -300,
+    "country": "US"
+  },
+  {
     "versionName": "Paper 1.21.11",
     "protocol": 774,
     "motd": "A Minecraft Server",
@@ -686,6 +1118,18 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
     "enforcesSecureChat": true,
     "port": 25567,
     "utcOffsetMinutes": -360,
+    "country": "US"
+  },
+  {
+    "versionName": "vibe (MC 1.9-26.x.x, 26.1.2 native) 26.1.2",
+    "protocol": 774,
+    "motd": "      . . . . . 『 Vibe Central SMP S9 』 . . . . . \n                  Welcome to Season 9!\n              Season 9 is on the horizon!\n      No-Grief | Friendly Community | Laid Back\n               ⊹₊‧˖ Six years of vibes! ˖‧₊⊹\n      No-Grief | Friendly Community | Laid Back\nVibe Central SMP - Maintenance\nSeason 9 releases Tuesday at 5:00 PM EDT!",
+    "maxPlayers": 50,
+    "online": 13,
+    "hasFavicon": true,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": 0,
     "country": "US"
   },
   {
@@ -725,6 +1169,18 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
     "country": "US"
   },
   {
+    "versionName": "IceTime",
+    "protocol": 774,
+    "motd": "▶ ɪᴄᴇᴛɪᴍᴇ.ꜰᴜɴ ◀ ᴄᴋᴏᴘᴏ ᴏтᴋᴘытиᴇ...\n▶   ᴀɴᴀʀᴄʜʏ   ◀ ⇄ ᴛɢ @ɪᴄᴇᴛɪᴍᴇɴᴇᴡ | 1.16.5-1.21.4 ⚔",
+    "maxPlayers": 4444,
+    "online": 6,
+    "hasFavicon": false,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": 0,
+    "country": "RU"
+  },
+  {
     "versionName": "1.21.11",
     "protocol": 774,
     "motd": "A Minecraft Server",
@@ -747,6 +1203,30 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
     "port": 25565,
     "utcOffsetMinutes": 0,
     "country": "CN"
+  },
+  {
+    "versionName": "布吉岛中国版",
+    "protocol": 774,
+    "motd": "网易我的世界 布吉岛 更新! [PC/PE]\n请前往 mc.163.com 下载客户端以加入",
+    "maxPlayers": 66666,
+    "online": 989,
+    "hasFavicon": true,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": 0,
+    "country": "CN"
+  },
+  {
+    "versionName": "neoforge arclight/FeudalKings 1.21.1",
+    "protocol": 767,
+    "motd": "            777 Network [1.21.1 NeoForge]\n                     Survival World",
+    "maxPlayers": 67,
+    "online": 2,
+    "hasFavicon": true,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": 0,
+    "country": "TH"
   },
   {
     "versionName": "Paper 26.1.2",
@@ -785,6 +1265,42 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
     "country": "US"
   },
   {
+    "versionName": "1.21.1",
+    "protocol": 767,
+    "motd": "Realistic Survival Server",
+    "maxPlayers": 100,
+    "online": 2,
+    "hasFavicon": false,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": -420,
+    "country": "US"
+  },
+  {
+    "versionName": "1.12.2",
+    "protocol": 340,
+    "motd": "A Minecraft Server",
+    "maxPlayers": 20,
+    "online": 2,
+    "hasFavicon": true,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": -300,
+    "country": "US"
+  },
+  {
+    "versionName": "Paper 1.21.11",
+    "protocol": 774,
+    "motd": "BroMC",
+    "maxPlayers": 20,
+    "online": 2,
+    "hasFavicon": false,
+    "enforcesSecureChat": true,
+    "port": 25565,
+    "utcOffsetMinutes": 60,
+    "country": "DE"
+  },
+  {
     "versionName": "26.2",
     "protocol": 776,
     "motd": "CREEPERS! ILLAGERS!",
@@ -821,6 +1337,42 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
     "country": "GB"
   },
   {
+    "versionName": "Velocity 1.7.2-26.2",
+    "protocol": 774,
+    "motd": "CCBlueX's Testserver (EU) - test.ccbluex.net\n1.21.4 Server > /server latest",
+    "maxPlayers": 200,
+    "online": 13,
+    "hasFavicon": true,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": 0,
+    "country": "FR"
+  },
+  {
+    "versionName": "Paper 26.2",
+    "protocol": 776,
+    "motd": "A Minecraft Server",
+    "maxPlayers": 20,
+    "online": 2,
+    "hasFavicon": false,
+    "enforcesSecureChat": true,
+    "port": 25565,
+    "utcOffsetMinutes": -300,
+    "country": "US"
+  },
+  {
+    "versionName": "Velocity 1.7.2-26.2",
+    "protocol": 774,
+    "motd": "     MunchyMC - [1.7-26.1] - Survival\nNEW PRISON RESET SAT, OCT 8, 3 EST",
+    "maxPlayers": 1111,
+    "online": 19,
+    "hasFavicon": true,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": 0,
+    "country": "US"
+  },
+  {
     "versionName": "26.2",
     "protocol": 776,
     "motd": "A Paper Minecraft Server powered by Docker",
@@ -830,6 +1382,18 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
     "enforcesSecureChat": true,
     "port": 25565,
     "utcOffsetMinutes": -300,
+    "country": "US"
+  },
+  {
+    "versionName": "Paper 26.2",
+    "protocol": 776,
+    "motd": "A Minecraft Server",
+    "maxPlayers": 20,
+    "online": 3,
+    "hasFavicon": false,
+    "enforcesSecureChat": true,
+    "port": 25565,
+    "utcOffsetMinutes": -420,
     "country": "US"
   },
   {
@@ -843,6 +1407,30 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
     "port": 25565,
     "utcOffsetMinutes": 60,
     "country": "DE"
+  },
+  {
+    "versionName": "Velocity 1.7.2-26.1.2",
+    "protocol": 774,
+    "motd": "          VALKYRIAN [1.17 - 1.21]\n      TIENDA » ¡Descuentos en tienda.valkyrian.us!",
+    "maxPlayers": 500,
+    "online": 4,
+    "hasFavicon": true,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": 0,
+    "country": "US"
+  },
+  {
+    "versionName": "1.20.1",
+    "protocol": 763,
+    "motd": "Просто ламповый сервер!",
+    "maxPlayers": 30,
+    "online": 2,
+    "hasFavicon": true,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": 0,
+    "country": "US"
   },
   {
     "versionName": "1.19.4",
@@ -859,6 +1447,30 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
   {
     "versionName": "Velocity 1.7.2-26.1.2",
     "protocol": 774,
+    "motd": "                 LAYSMP.DE - (1.21+)\n        NEUE LOBBY + WM TIPPSPIELE",
+    "maxPlayers": 500,
+    "online": 5,
+    "hasFavicon": true,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": 0,
+    "country": "FR"
+  },
+  {
+    "versionName": "1.21.1",
+    "protocol": 767,
+    "motd": "✦ ════════[ COLOMON ]════════ ✦\n         ⚡ Pixelmon 9.3.16 • NOW OPEN ⚡",
+    "maxPlayers": 50,
+    "online": 4,
+    "hasFavicon": false,
+    "enforcesSecureChat": true,
+    "port": 25565,
+    "utcOffsetMinutes": -300,
+    "country": "US"
+  },
+  {
+    "versionName": "Velocity 1.7.2-26.1.2",
+    "protocol": 774,
     "motd": "                     Minezone [1.8-26.1]\n            SCB - HUGE CLASSES REVAMP!",
     "maxPlayers": 1,
     "online": 0,
@@ -867,6 +1479,18 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
     "port": 25565,
     "utcOffsetMinutes": -300,
     "country": "US"
+  },
+  {
+    "versionName": "§aJoin here ->                                                     ",
+    "protocol": 774,
+    "motd": "       ZenPvP      FINAL V1 PRISON SEASON\ndiscord.gg/zenpvp   Opens: June 27th @ 3PM EST",
+    "maxPlayers": 2026,
+    "online": 55,
+    "hasFavicon": true,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": 0,
+    "country": "CA"
   },
   {
     "versionName": "Paper 1.21.11",
@@ -879,6 +1503,18 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
     "port": 25571,
     "utcOffsetMinutes": 0,
     "country": "CA"
+  },
+  {
+    "versionName": "Paper 1.21.11",
+    "protocol": 774,
+    "motd": "A Minecraft Server",
+    "maxPlayers": 2000,
+    "online": 2,
+    "hasFavicon": false,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": 60,
+    "country": "DE"
   },
   {
     "versionName": "Paper 26.1.2",
@@ -929,6 +1565,18 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
     "country": "DE"
   },
   {
+    "versionName": "1.20.1",
+    "protocol": 763,
+    "motd": "Hosted by Shockbyte\nhttps://shockbyte.com",
+    "maxPlayers": 15,
+    "online": 3,
+    "hasFavicon": true,
+    "enforcesSecureChat": true,
+    "port": 25565,
+    "utcOffsetMinutes": 0,
+    "country": "FR"
+  },
+  {
     "versionName": "Paper 26.2",
     "protocol": 776,
     "motd": "A Minecraft Server",
@@ -953,6 +1601,18 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
     "country": "CA"
   },
   {
+    "versionName": "Velocity 1.7.2-26.2",
+    "protocol": 774,
+    "motd": "       ▪▪▪ i ENCUBOS NETWORK [1.8 - 26.1] i ▪▪▪\n    ⭐ ¡Visita nuestra tienda!・store.encubos.eu ⭐",
+    "maxPlayers": 500,
+    "online": 5,
+    "hasFavicon": true,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": -300,
+    "country": "CA"
+  },
+  {
     "versionName": "Paper 26.1.2",
     "protocol": 775,
     "motd": "Ich gehe lieber auf DuBix.net",
@@ -963,6 +1623,18 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
     "port": 25565,
     "utcOffsetMinutes": 60,
     "country": "DE"
+  },
+  {
+    "versionName": "1.20.1",
+    "protocol": 763,
+    "motd": "A Minecraft Server",
+    "maxPlayers": 67,
+    "online": 2,
+    "hasFavicon": false,
+    "enforcesSecureChat": true,
+    "port": 25565,
+    "utcOffsetMinutes": 120,
+    "country": "UA"
   },
   {
     "versionName": "1.21.11",
@@ -1025,6 +1697,18 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
     "country": "JP"
   },
   {
+    "versionName": "1.21.1",
+    "protocol": 767,
+    "motd": "A Minecraft Server",
+    "maxPlayers": 20,
+    "online": 2,
+    "hasFavicon": true,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": -180,
+    "country": "BR"
+  },
+  {
     "versionName": "1.21.11",
     "protocol": 774,
     "motd": "Hello PB gang",
@@ -1035,6 +1719,30 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
     "port": 25545,
     "utcOffsetMinutes": 600,
     "country": "AU"
+  },
+  {
+    "versionName": "1.21.11",
+    "protocol": 774,
+    "motd": "Minecraft Server",
+    "maxPlayers": 20,
+    "online": 2,
+    "hasFavicon": false,
+    "enforcesSecureChat": true,
+    "port": 25565,
+    "utcOffsetMinutes": 0,
+    "country": "FR"
+  },
+  {
+    "versionName": "UniverseSpigot 26.1.2",
+    "protocol": 775,
+    "motd": "                 MineHill.cz [26.1.2]\n                Whitelisted Vanilla Server",
+    "maxPlayers": 40,
+    "online": 10,
+    "hasFavicon": true,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": 60,
+    "country": "DE"
   },
   {
     "versionName": "Purpur 1.21.10",
@@ -1058,6 +1766,30 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
     "enforcesSecureChat": true,
     "port": 25578,
     "utcOffsetMinutes": 0,
+    "country": "US"
+  },
+  {
+    "versionName": "Paper 1.21.11",
+    "protocol": 774,
+    "motd": "Season 2",
+    "maxPlayers": 35,
+    "online": 3,
+    "hasFavicon": true,
+    "enforcesSecureChat": true,
+    "port": 25565,
+    "utcOffsetMinutes": 0,
+    "country": "US"
+  },
+  {
+    "versionName": "BungeeCord 1.8.x-26.x",
+    "protocol": 774,
+    "motd": "dungeonsim v2.0.0 now with 7 servers!",
+    "maxPlayers": 50,
+    "online": 5,
+    "hasFavicon": false,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": -360,
     "country": "US"
   },
   {
@@ -1085,6 +1817,42 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
     "country": "US"
   },
   {
+    "versionName": "1.21.1",
+    "protocol": 767,
+    "motd": "A Minecraft Server",
+    "maxPlayers": 10,
+    "online": 2,
+    "hasFavicon": true,
+    "enforcesSecureChat": true,
+    "port": 25565,
+    "utcOffsetMinutes": -300,
+    "country": "US"
+  },
+  {
+    "versionName": "Waterfall 1.8.x, 1.9.x, 1.10.x, 1.11.x, 1.12.x, 1.13.x, 1.14.x, 1.15.x, 1.16.x, 1.17.x, 1.18.x, 1.19.x, 1.20.x, 1.21.x, 26.x",
+    "protocol": 774,
+    "motd": "        Oxaria [1.21.11] JAVA & BEDROCK\\n    Skyblock V1 disponible dès maintenant !",
+    "maxPlayers": 18,
+    "online": 17,
+    "hasFavicon": true,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": 0,
+    "country": "FR"
+  },
+  {
+    "versionName": "26.2",
+    "protocol": 776,
+    "motd": "A Minecraft Server",
+    "maxPlayers": 20,
+    "online": 2,
+    "hasFavicon": false,
+    "enforcesSecureChat": true,
+    "port": 25565,
+    "utcOffsetMinutes": -360,
+    "country": "US"
+  },
+  {
     "versionName": "Spigot 1.21.5",
     "protocol": 770,
     "motd": "A Minecraft Server",
@@ -1095,6 +1863,42 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
     "port": 25565,
     "utcOffsetMinutes": 0,
     "country": "PL"
+  },
+  {
+    "versionName": "1.21.1",
+    "protocol": 767,
+    "motd": "Can't wait to Create",
+    "maxPlayers": 2,
+    "online": 2,
+    "hasFavicon": true,
+    "enforcesSecureChat": true,
+    "port": 25565,
+    "utcOffsetMinutes": -480,
+    "country": "US"
+  },
+  {
+    "versionName": "Velocity 1.7.2-1.21.5",
+    "protocol": 770,
+    "motd": "Поддержка и актуальный лаунчер v1.21.1 на freecraft.ru",
+    "maxPlayers": 2000,
+    "online": 19,
+    "hasFavicon": false,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": 120,
+    "country": "RU"
+  },
+  {
+    "versionName": "CheatBungee 1.8.x - 1.20.x",
+    "protocol": 774,
+    "motd": "    ‹ ＤＥＸＬＡＮＤ 1.8-26.1 ✯✯✯✯✯ ›\n⚠ ВЫЖИВАНИЕ ▪ АНАРХИЯ ▪ BEDWARS ▪ KITPVP ⚠",
+    "maxPlayers": 20000,
+    "online": 2092,
+    "hasFavicon": true,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": 0,
+    "country": "RU"
   },
   {
     "versionName": "Paper 26.1.2",
@@ -1119,6 +1923,18 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
     "port": 25565,
     "utcOffsetMinutes": 0,
     "country": "IL"
+  },
+  {
+    "versionName": "Velocity-CTD 1.7.2-26.1.2",
+    "protocol": 774,
+    "motd": "                  POTIONMC | [1.21+]\n            #1 ʟɪꜰᴇꜱᴛᴇᴀʟ ꜱᴍᴘ NEW SEASON",
+    "maxPlayers": 500,
+    "online": 4,
+    "hasFavicon": true,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": 0,
+    "country": "GB"
   },
   {
     "versionName": "1.21.10",
@@ -1181,6 +1997,42 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
     "country": "DE"
   },
   {
+    "versionName": "1.20.1",
+    "protocol": 763,
+    "motd": "Unlimited Lives, RP Mode",
+    "maxPlayers": 40,
+    "online": 4,
+    "hasFavicon": true,
+    "enforcesSecureChat": true,
+    "port": 25565,
+    "utcOffsetMinutes": 0,
+    "country": "US"
+  },
+  {
+    "versionName": "1.12.2",
+    "protocol": 340,
+    "motd": "A Minecraft Server",
+    "maxPlayers": 20,
+    "online": 2,
+    "hasFavicon": true,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": 0,
+    "country": "US"
+  },
+  {
+    "versionName": "Paper 1.21.11",
+    "protocol": 774,
+    "motd": "A Minecraft Server",
+    "maxPlayers": 20,
+    "online": 2,
+    "hasFavicon": false,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": 60,
+    "country": "PL"
+  },
+  {
     "versionName": "1.21.10",
     "protocol": 773,
     "motd": "Server for Kobriis ONLY!",
@@ -1191,6 +2043,30 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
     "port": 25565,
     "utcOffsetMinutes": 60,
     "country": "CZ"
+  },
+  {
+    "versionName": "NullCordX 1.8.x-1.21.x",
+    "protocol": 774,
+    "motd": "\n",
+    "maxPlayers": 50000,
+    "online": 49742,
+    "hasFavicon": true,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": 180,
+    "country": "RU"
+  },
+  {
+    "versionName": "NullCordX 1.8.x-1.21.x",
+    "protocol": 774,
+    "motd": "     ▂▃▄▅▆▇ PLAY.OLIMPMINE.RU ▇▆▅▄▃▂ \n ‹ 1.20 — 1.16.5 ›  ❖ АНАРХИЯ ❖ /FREE",
+    "maxPlayers": 23,
+    "online": 22,
+    "hasFavicon": true,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": 180,
+    "country": "RU"
   },
   {
     "versionName": "",
@@ -1253,6 +2129,30 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
     "country": "US"
   },
   {
+    "versionName": "Paper 26.2",
+    "protocol": 774,
+    "motd": "Minecraft Server",
+    "maxPlayers": 20000,
+    "online": 19256,
+    "hasFavicon": true,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": -300,
+    "country": "US"
+  },
+  {
+    "versionName": "Spigot 26.1",
+    "protocol": 774,
+    "motd": "The Best SMP Ever! Elite Survival!\n PvP-Skills-Eco-PvE-More!",
+    "maxPlayers": 50,
+    "online": 3,
+    "hasFavicon": true,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": -300,
+    "country": "US"
+  },
+  {
     "versionName": "1.21.11",
     "protocol": 774,
     "motd": "Powered by AMP",
@@ -1263,6 +2163,18 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
     "port": 25570,
     "utcOffsetMinutes": 480,
     "country": "AU"
+  },
+  {
+    "versionName": "26.2",
+    "protocol": 776,
+    "motd": "&3&l&oTHE minecraft server &f| &d&nMsg on discord for whitelist requests",
+    "maxPlayers": 20,
+    "online": 2,
+    "hasFavicon": false,
+    "enforcesSecureChat": true,
+    "port": 25565,
+    "utcOffsetMinutes": -360,
+    "country": "US"
   },
   {
     "versionName": "1.21.10",
@@ -1313,6 +2225,18 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
     "country": "US"
   },
   {
+    "versionName": "Purpur 1.21.11",
+    "protocol": 774,
+    "motd": "                      ᴛʜᴇ ɢᴀʀᴅᴇɴ\n      🌿  JOIN WITH 1.21.11 - 26.1.2  🌿",
+    "maxPlayers": 50,
+    "online": 11,
+    "hasFavicon": true,
+    "enforcesSecureChat": true,
+    "port": 25565,
+    "utcOffsetMinutes": 0,
+    "country": "US"
+  },
+  {
     "versionName": "1.21.1",
     "protocol": 767,
     "motd": "SIMP",
@@ -1349,6 +2273,30 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
     "country": "US"
   },
   {
+    "versionName": "1.21.1",
+    "protocol": 767,
+    "motd": "All the Mons",
+    "maxPlayers": 20,
+    "online": 2,
+    "hasFavicon": true,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": -420,
+    "country": "US"
+  },
+  {
+    "versionName": "1.20.4",
+    "protocol": 765,
+    "motd": "Building Paradise",
+    "maxPlayers": 20,
+    "online": 2,
+    "hasFavicon": false,
+    "enforcesSecureChat": false,
+    "port": 25565,
+    "utcOffsetMinutes": 0,
+    "country": "FI"
+  },
+  {
     "versionName": "Paper 1.21.11",
     "protocol": 774,
     "motd": "ValerianSMP",
@@ -1359,6 +2307,18 @@ export const PERSONA_CORPUS: readonly ServerProfile[] = [
     "port": 25565,
     "utcOffsetMinutes": 0,
     "country": "FR"
+  },
+  {
+    "versionName": "1.21.1",
+    "protocol": 767,
+    "motd": "KRGG Forever World",
+    "maxPlayers": 67,
+    "online": 3,
+    "hasFavicon": true,
+    "enforcesSecureChat": true,
+    "port": 25565,
+    "utcOffsetMinutes": 60,
+    "country": "DE"
   },
   {
     "versionName": "1.21.1",
