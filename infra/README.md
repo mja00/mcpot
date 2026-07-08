@@ -3,6 +3,21 @@
 Two things deploy separately: the **central stack** (server + dashboard + Postgres) runs in one
 place; **daemons** run on many VPSes and phone home to it.
 
+## Images
+
+CI publishes images to GHCR on every push to `main` (tagged `latest`, `main`, and the commit sha)
+and on `v*` tags (semver tags):
+
+- `ghcr.io/mja00/mcpot-server`
+- `ghcr.io/mja00/mcpot-web`
+- `ghcr.io/mja00/mcpot-daemon`
+
+If the packages are private, authenticate first with a token that has `read:packages`:
+
+```bash
+docker login ghcr.io
+```
+
 ## Central stack
 
 From the repo root:
@@ -11,8 +26,11 @@ From the repo root:
 ADMIN_TOKEN=$(openssl rand -hex 24) \
 ADMIN_PASSWORD='choose-a-strong-password' \
 SESSION_SECRET=$(openssl rand -hex 32) \
-docker compose -f infra/docker-compose.full.yml up --build -d
+docker compose -f infra/docker-compose.full.yml up -d
 ```
+
+This pulls the published images; set `MCPOT_TAG` to pin a specific version (default `latest`), or
+add `--build` to build from source instead.
 
 - Dashboard → `http://<host>:8081` (log in with `ADMIN_PASSWORD`)
 - API → `http://<host>:8080`
@@ -23,12 +41,6 @@ Put the server/dashboard behind TLS (a reverse proxy) before exposing them publi
 
 ## Deploying a daemon to a VPS
 
-Build and ship the daemon image:
-
-```bash
-docker build -f infra/Dockerfile.daemon -t mcpot-daemon .
-```
-
 Mint an enrollment token from the dashboard (Daemons → Enroll new daemon), then on the VPS:
 
 ```bash
@@ -37,8 +49,10 @@ docker run -d --name mcpot --restart unless-stopped \
   -v mcpot-data:/data \
   -e MCPOT_SERVER_URL='https://your-central-host:8080' \
   -e MCPOT_ENROLLMENT_TOKEN='<token-from-dashboard>' \
-  mcpot-daemon
+  ghcr.io/mja00/mcpot-daemon:latest
 ```
+
+To build the image from source instead: `docker build -f infra/Dockerfile.daemon -t mcpot-daemon .`
 
 - The daemon enrolls once, persists its identity + durable queue in the `/data` volume, and phones home. Re-running with the same volume keeps the same daemon.
 - Point real player traffic away from `:25565` — this is a honeypot; anything that connects is recorded.

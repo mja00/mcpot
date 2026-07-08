@@ -1,6 +1,7 @@
 # Full central stack: Postgres + server (API, migrates on boot) + web (dashboard). Daemons are NOT
-# here — they deploy to VPSes from Dockerfile.daemon (see infra/README.md). Build context is the repo
-# root: run from there with `docker compose -f infra/docker-compose.full.yml up --build`.
+# here — they deploy to VPSes from Dockerfile.daemon (see infra/README.md). Uses the GHCR images
+# published by CI; to build from source instead, run from the repo root with
+# `docker compose -f infra/docker-compose.full.yml up --build`.
 services:
   postgres:
     image: postgres:17-alpine
@@ -17,6 +18,7 @@ services:
       retries: 10
 
   server:
+    image: ghcr.io/mja00/mcpot-server:${MCPOT_TAG:-latest}
     build:
       context: ..
       dockerfile: infra/Dockerfile.server
@@ -35,6 +37,7 @@ services:
       - "8080:8080"
 
   web:
+    image: ghcr.io/mja00/mcpot-web:${MCPOT_TAG:-latest}
     build:
       context: ..
       dockerfile: infra/Dockerfile.web
