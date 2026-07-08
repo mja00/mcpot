@@ -17,6 +17,7 @@
     "rewriteRelativeImportExtensions": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "types": ["node", "vitest/globals"]
   }
 }
