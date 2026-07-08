@@ -17,6 +17,8 @@ export interface ServerConfig {
 	sessionSecret: string;
 	/** Raw connection events older than this are purged daily (PII retention + table growth). */
 	retentionDays: number;
+	/** Directory holding GeoLite2 mmdb files; lookups degrade to null when they're absent. */
+	geoipDir: string;
 	/** Optional reporting sinks; reporting is manual/gated and no-ops when unset. */
 	abuseipdbKey: string | null;
 	webhookUrl: string | null;
@@ -39,6 +41,7 @@ export function loadServerConfig(): ServerConfig {
 		adminPassword,
 		sessionSecret,
 		retentionDays: envInt("RETENTION_DAYS", 90),
+		geoipDir: process.env.GEOIP_DIR ?? "/data/geoip",
 		abuseipdbKey: process.env.ABUSEIPDB_KEY ?? null,
 		webhookUrl: process.env.WEBHOOK_URL ?? null,
 	};

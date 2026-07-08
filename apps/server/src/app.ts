@@ -4,6 +4,7 @@ import { registerDaemonRoutes } from "./routes/daemon-routes.ts";
 import { registerAdminRoutes } from "./routes/admin-routes.ts";
 import { registerReadRoutes } from "./routes/read-routes.ts";
 import { registerAuthRoutes } from "./routes/auth-routes.ts";
+import { type GeoService, noopGeo } from "./geo.ts";
 
 export interface BuildAppOptions {
 	db: Db;
@@ -12,6 +13,7 @@ export interface BuildAppOptions {
 	sessionSecret: string;
 	abuseipdbKey?: string | null;
 	webhookUrl?: string | null;
+	geo?: GeoService;
 }
 
 /** Assemble the Fastify app. Kept db-injectable so tests run it against a throwaway database. */
@@ -22,7 +24,7 @@ export function buildApp(opts: BuildAppOptions): FastifyInstance {
 
 	const reportConfig = { abuseipdbKey: opts.abuseipdbKey ?? null, webhookUrl: opts.webhookUrl ?? null };
 	registerAuthRoutes(app, opts.adminPassword, opts.sessionSecret);
-	registerDaemonRoutes(app, opts.db);
+	registerDaemonRoutes(app, opts.db, opts.geo ?? noopGeo);
 	registerAdminRoutes(app, opts.db, opts.adminToken, opts.sessionSecret, reportConfig);
 	registerReadRoutes(app, opts.db, opts.adminToken, opts.sessionSecret);
 

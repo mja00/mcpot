@@ -18,6 +18,7 @@
     "drizzle-orm": "^0.45.2",
     "drizzle-zod": "^0.8.3",
     "fastify": "^5.2.0",
+    "maxmind": "^5.0.6",
     "postgres": "^3.4.5",
     "zod": "^3.24.1"
   },

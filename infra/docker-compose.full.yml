@@ -30,11 +30,27 @@ services:
       RETENTION_DAYS: ${RETENTION_DAYS:-90}
       ABUSEIPDB_KEY: ${ABUSEIPDB_KEY:-}
       WEBHOOK_URL: ${WEBHOOK_URL:-}
+      GEOIP_DIR: /data/geoip
+    volumes:
+      - mcpot_geoip:/data/geoip:ro
     depends_on:
       postgres:
         condition: service_healthy
     ports:
       - "8080:8080"
+
+  # Keeps GeoLite2 databases fresh on a shared volume; the server hot-reloads them. Optional:
+  # without MaxMind credentials it exits and connections simply aren't geo-enriched.
+  geoipupdate:
+    image: ghcr.io/maxmind/geoipupdate:latest
+    restart: unless-stopped
+    environment:
+      GEOIPUPDATE_ACCOUNT_ID: ${MAXMIND_ACCOUNT_ID:-}
+      GEOIPUPDATE_LICENSE_KEY: ${MAXMIND_LICENSE_KEY:-}
+      GEOIPUPDATE_EDITION_IDS: GeoLite2-Country GeoLite2-ASN
+      GEOIPUPDATE_FREQUENCY: "72"
+    volumes:
+      - mcpot_geoip:/usr/share/GeoIP
 
   web:
     image: ghcr.io/mja00/mcpot-web:${MCPOT_TAG:-latest}
@@ -48,3 +64,4 @@ services:
 
 volumes:
   mcpot_pg:
+  mcpot_geoip:

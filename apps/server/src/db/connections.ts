@@ -4,6 +4,7 @@ import type { Db } from "./client.ts";
 import { connections } from "./schema.ts";
 import { sanitizeString, toInetOrNull } from "../sanitize.ts";
 import { type Classification, classify } from "../classify.ts";
+import type { GeoService } from "../geo.ts";
 
 export interface IngestResult {
 	accepted: number;
@@ -14,18 +15,20 @@ export interface IngestResult {
  * Store a batch idempotently. event_id is the PK, so onConflictDoNothing makes retried batches safe.
  * We also dedupe within the batch first (a single INSERT can't reference the same conflict key twice)
  * and sanitize attacker-controlled strings. received_at defaults to server time (daemon clocks drift).
+ * Geo enrichment happens here (not on read) so historic rows keep the geo of when they were seen.
  */
-export async function ingestEvents(db: Db, daemonId: string, events: ConnectionEvent[]): Promise<IngestResult> {
+export async function ingestEvents(db: Db, geo: GeoService, daemonId: string, events: ConnectionEvent[]): Promise<IngestResult> {
 	const seen = new Set<string>();
 	const rows = [];
 	for (const e of events) {
 		if (seen.has(e.eventId)) continue;
 		seen.add(e.eventId);
+		const srcIp = toInetOrNull(e.srcIp);
 		rows.push({
 			eventId: e.eventId,
 			daemonId,
 			observedAt: new Date(e.observedAt),
-			srcIp: toInetOrNull(e.srcIp),
+			srcIp,
 			srcPort: e.srcPort,
 			protocolVersion: e.protocolVersion,
 			serverAddress: sanitizeString(e.serverAddress),
@@ -35,6 +38,7 @@ export async function ingestEvents(db: Db, daemonId: string, events: ConnectionE
 			username: sanitizeString(e.username),
 			playerUuid: e.playerUuid,
 			fingerprint: sanitizeString(e.fingerprint),
+			...geo.lookup(srcIp),
 		});
 	}
 	if (rows.length === 0) return { accepted: 0, duplicates: events.length };
@@ -57,6 +61,9 @@ export interface RecentConnection {
 	serverAddress: string | null;
 	intent: string;
 	username: string | null;
+	countryCode: string | null;
+	asn: number | null;
+	asOrg: string | null;
 }
 
 /** Most recent events, optionally scoped to one daemon and/or source IP. */
@@ -74,6 +81,9 @@ export async function listConnections(
 			serverAddress: connections.serverAddress,
 			intent: connections.intent,
 			username: connections.username,
+			countryCode: connections.countryCode,
+			asn: connections.asn,
+			asOrg: connections.asOrg,
 		})
 		.from(connections)
 		.orderBy(desc(connections.receivedAt))
@@ -127,6 +137,8 @@ export interface Offender {
 	lastSeen: Date;
 	score: number;
 	classification: Classification;
+	countryCode: string | null;
+	asOrg: string | null;
 }
 
 /**
@@ -148,6 +160,9 @@ export async function getOffenders(db: Db, windowHours: number, limit: number): 
 			rawHostnameHits,
 			abnormalProtoHits: sql<number>`count(*) filter (where ${connections.protocolVersion} is null or ${connections.protocolVersion} <= 0)`,
 			distinctUsernames: sql<number>`count(distinct ${connections.username})`,
+			// Functionally dependent on the grouped src_ip; max() is just the cheap way to select it.
+			countryCode: sql<string | null>`max(${connections.countryCode})`,
+			asOrg: sql<string | null>`max(${connections.asOrg})`,
 		})
 		.from(connections)
 		.where(gte(connections.receivedAt, since))
@@ -165,7 +180,15 @@ export async function getOffenders(db: Db, windowHours: number, limit: number): 
 			distinctUsernames: Number(r.distinctUsernames),
 		};
 		const { score, label } = classify(signals);
-		return { srcIp: r.srcIp, ...signals, lastSeen: new Date(r.lastSeen), score, classification: label };
+		return {
+			srcIp: r.srcIp,
+			...signals,
+			lastSeen: new Date(r.lastSeen),
+			score,
+			classification: label,
+			countryCode: r.countryCode,
+			asOrg: r.asOrg,
+		};
 	});
 }
 

@@ -6,9 +6,10 @@ import { consumeEnrollmentToken } from "../db/tokens.ts";
 import { ingestEvents } from "../db/connections.ts";
 import { daemonAuth, requireOwnDaemon } from "../auth/middleware.ts";
 import { parseBody } from "./validate.ts";
+import type { GeoService } from "../geo.ts";
 
 /** Daemon-facing endpoints: enrollment, event ingest, config poll, heartbeat. */
-export function registerDaemonRoutes(app: FastifyInstance, db: Db): void {
+export function registerDaemonRoutes(app: FastifyInstance, db: Db, geo: GeoService): void {
 	const auth = daemonAuth(db);
 
 	app.post("/v1/enroll", async (req, reply) => {
@@ -23,7 +24,7 @@ export function registerDaemonRoutes(app: FastifyInstance, db: Db): void {
 	app.post("/v1/ingest", { preHandler: auth }, async (req, reply) => {
 		const body = parseBody(IngestRequest, req, reply);
 		if (!body) return;
-		const result = await ingestEvents(db, req.daemonId!, body.events);
+		const result = await ingestEvents(db, geo, req.daemonId!, body.events);
 		return reply.send(result);
 	});
 
