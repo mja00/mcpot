@@ -1,5 +1,5 @@
-import { and, count, countDistinct, desc, eq, gte, sql } from "drizzle-orm";
-import type { ConnectionEvent } from "@mcpot/shared";
+import { and, count, countDistinct, desc, eq, gte, isNotNull, ne, sql } from "drizzle-orm";
+import type { ConnectionEvent, OverviewResponse } from "@mcpot/shared";
 import type { Db } from "./client.ts";
 import { connections } from "./schema.ts";
 import { sanitizeString, toInetOrNull } from "../sanitize.ts";
@@ -199,6 +199,58 @@ export interface Stats {
 	statusCount: number;
 	loginCount: number;
 	hitsPerMinute: number;
+}
+
+/**
+ * Everything the Overview page needs in one round trip: stats, per-intent counts, top targeted
+ * hostnames, top tried usernames, and a small time series for sparklines. Bucket width scales with
+ * the window (date_bin, Postgres 17) so the series stays at ~60 points regardless of window size.
+ */
+export async function getOverview(db: Db, windowMinutes: number, topLimit: number): Promise<OverviewResponse> {
+	const since = new Date(Date.now() - windowMinutes * 60_000);
+	const bucketMinutes = Math.max(1, Math.ceil(windowMinutes / 60));
+	// Inlined (not bound) so the SELECT and GROUP BY expressions parse identically; it's a
+	// server-computed integer, never user input.
+	const bucket = sql<string>`date_bin(${sql.raw(`make_interval(mins => ${bucketMinutes})`)}, ${connections.receivedAt}, 'epoch')`;
+
+	const [stats, intents, topServerAddresses, topUsernames, series] = await Promise.all([
+		getStats(db, windowMinutes),
+		db
+			.select({ intent: connections.intent, count: count() })
+			.from(connections)
+			.where(gte(connections.receivedAt, since))
+			.groupBy(connections.intent)
+			.orderBy(desc(count())),
+		db
+			.select({ serverAddress: connections.serverAddress, hits: count() })
+			.from(connections)
+			.where(and(gte(connections.receivedAt, since), isNotNull(connections.serverAddress), ne(connections.serverAddress, "")))
+			.groupBy(connections.serverAddress)
+			.orderBy(desc(count()))
+			.limit(topLimit),
+		db
+			.select({ username: connections.username, hits: count() })
+			.from(connections)
+			.where(and(gte(connections.receivedAt, since), eq(connections.intent, "login"), isNotNull(connections.username)))
+			.groupBy(connections.username)
+			.orderBy(desc(count()))
+			.limit(topLimit),
+		db
+			.select({ bucket, total: count() })
+			.from(connections)
+			.where(gte(connections.receivedAt, since))
+			.groupBy(bucket)
+			.orderBy(bucket),
+	]);
+
+	return {
+		stats,
+		intents: intents.map((r) => ({ intent: r.intent, count: Number(r.count) })),
+		topServerAddresses: topServerAddresses.map((r) => ({ serverAddress: r.serverAddress!, hits: Number(r.hits) })),
+		topUsernames: topUsernames.map((r) => ({ username: r.username!, hits: Number(r.hits) })),
+		series: series.map((r) => ({ bucket: new Date(r.bucket).toISOString(), total: Number(r.total) })),
+		bucketMinutes,
+	};
 }
 
 /** Rolling-window aggregates for the Overview page. "hit rate" = connections/min over the window. */

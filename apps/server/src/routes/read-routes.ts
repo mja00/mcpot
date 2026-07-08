@@ -1,11 +1,15 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { Db } from "../db/client.ts";
-import { getOffenders, getStats, getTrends, listConnections } from "../db/connections.ts";
+import { getOffenders, getOverview, getStats, getTrends, listConnections } from "../db/connections.ts";
 import { listDaemons } from "../db/daemons.ts";
 import { dashboardAuth } from "../auth/middleware.ts";
 
 const StatsQuery = z.object({ windowMinutes: z.coerce.number().int().min(1).max(10080).default(60) });
+const OverviewQuery = z.object({
+	windowMinutes: z.coerce.number().int().min(1).max(10080).default(60),
+	topLimit: z.coerce.number().int().min(1).max(50).default(10),
+});
 const TrendsQuery = z.object({ hours: z.coerce.number().int().min(1).max(720).default(24) });
 const OffendersQuery = z.object({
 	windowHours: z.coerce.number().int().min(1).max(720).default(24),
@@ -25,6 +29,12 @@ export function registerReadRoutes(app: FastifyInstance, db: Db, adminToken: str
 		const q = StatsQuery.safeParse(req.query);
 		if (!q.success) return reply.code(400).send({ error: "validation_failed", issues: q.error.issues });
 		return reply.send(await getStats(db, q.data.windowMinutes));
+	});
+
+	app.get("/v1/overview", { preHandler: auth }, async (req, reply) => {
+		const q = OverviewQuery.safeParse(req.query);
+		if (!q.success) return reply.code(400).send({ error: "validation_failed", issues: q.error.issues });
+		return reply.send(await getOverview(db, q.data.windowMinutes, q.data.topLimit));
 	});
 
 	app.get("/v1/trends", { preHandler: auth }, async (req, reply) => {
