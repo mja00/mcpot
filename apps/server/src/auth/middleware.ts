@@ -3,6 +3,7 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 import type { Db } from "../db/client.ts";
 import { findDaemonByApiKey } from "../db/daemons.ts";
 import { hashSecret } from "./keys.ts";
+import { verifySession } from "./session.ts";
 
 declare module "fastify" {
 	interface FastifyRequest {
@@ -38,14 +39,31 @@ export async function requireOwnDaemon(req: FastifyRequest, reply: FastifyReply)
 	}
 }
 
+function matchesAdminToken(key: string | null, adminToken: string): boolean {
+	if (!key) return false;
+	const got = Buffer.from(key);
+	const expected = Buffer.from(adminToken);
+	return got.length === expected.length && timingSafeEqual(got, expected);
+}
+
 /** Constant-time admin bearer check for operator routes (token minting / revocation). */
 export function adminAuth(adminToken: string) {
-	const expected = Buffer.from(adminToken);
 	return async (req: FastifyRequest, reply: FastifyReply): Promise<void> => {
-		const key = bearer(req);
-		const got = key ? Buffer.from(key) : Buffer.alloc(0);
-		if (got.length !== expected.length || !timingSafeEqual(got, expected)) {
+		if (!matchesAdminToken(bearer(req), adminToken)) {
 			return void reply.code(401).send({ error: "admin auth required" });
 		}
+	};
+}
+
+/**
+ * Dashboard auth: accept either a valid signed session token (operator logged in via the UI) or the
+ * admin bearer token (scripts/CI). Guards the read + admin APIs the dashboard consumes.
+ */
+export function dashboardAuth(adminToken: string, sessionSecret: string) {
+	return async (req: FastifyRequest, reply: FastifyReply): Promise<void> => {
+		const key = bearer(req);
+		if (matchesAdminToken(key, adminToken)) return;
+		if (key && verifySession(key, sessionSecret, Date.now())) return;
+		return void reply.code(401).send({ error: "authentication required" });
 	};
 }

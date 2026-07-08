@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import type { DaemonConfig, HeartbeatRequest } from "@mcpot/shared";
 import type { Db } from "./client.ts";
 import { daemons } from "./schema.ts";
@@ -78,4 +78,39 @@ export async function recordHeartbeat(db: Db, daemonId: string, hb: HeartbeatReq
 /** Revoke a daemon's key (compromise response). It must re-enroll to get a new one. */
 export async function revokeDaemon(db: Db, daemonId: string): Promise<void> {
 	await db.update(daemons).set({ revoked: true }).where(eq(daemons.id, daemonId));
+}
+
+export interface DaemonListItem {
+	id: string;
+	hostname: string | null;
+	versionName: string;
+	revoked: boolean;
+	lastSeenAt: Date | null;
+	queueDepth: number | null;
+	createdAt: Date;
+}
+
+/** Daemon roster for the management view, newest first. Persona version surfaced for at-a-glance ID. */
+export async function listDaemons(db: Db): Promise<DaemonListItem[]> {
+	const rows = await db
+		.select({
+			id: daemons.id,
+			hostname: daemons.hostname,
+			persona: daemons.persona,
+			revoked: daemons.revoked,
+			lastSeenAt: daemons.lastSeenAt,
+			queueDepth: daemons.queueDepth,
+			createdAt: daemons.createdAt,
+		})
+		.from(daemons)
+		.orderBy(desc(daemons.createdAt));
+	return rows.map((r) => ({
+		id: r.id,
+		hostname: r.hostname,
+		versionName: r.persona.versionName,
+		revoked: r.revoked,
+		lastSeenAt: r.lastSeenAt,
+		queueDepth: r.queueDepth,
+		createdAt: r.createdAt,
+	}));
 }

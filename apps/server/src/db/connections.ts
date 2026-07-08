@@ -1,4 +1,4 @@
-import { count, countDistinct, desc, eq, gte } from "drizzle-orm";
+import { and, count, countDistinct, desc, eq, gte, sql } from "drizzle-orm";
 import type { ConnectionEvent } from "@mcpot/shared";
 import type { Db } from "./client.ts";
 import { connections } from "./schema.ts";
@@ -58,10 +58,10 @@ export interface RecentConnection {
 	username: string | null;
 }
 
-/** Most recent events, optionally scoped to one daemon. */
+/** Most recent events, optionally scoped to one daemon and/or source IP. */
 export async function listConnections(
 	db: Db,
-	opts: { limit: number; daemonId?: string } = { limit: 100 },
+	opts: { limit: number; daemonId?: string; srcIp?: string } = { limit: 100 },
 ): Promise<RecentConnection[]> {
 	const base = db
 		.select({
@@ -77,8 +77,75 @@ export async function listConnections(
 		.from(connections)
 		.orderBy(desc(connections.receivedAt))
 		.limit(Math.min(opts.limit, 1000));
-	const rows = opts.daemonId ? await base.where(eq(connections.daemonId, opts.daemonId)) : await base;
-	return rows;
+	if (opts.daemonId && opts.srcIp) {
+		return base.where(and(eq(connections.daemonId, opts.daemonId), eq(connections.srcIp, opts.srcIp)));
+	}
+	if (opts.daemonId) return base.where(eq(connections.daemonId, opts.daemonId));
+	if (opts.srcIp) return base.where(eq(connections.srcIp, opts.srcIp));
+	return base;
+}
+
+export interface TrendBucket {
+	bucket: string;
+	total: number;
+	status: number;
+	login: number;
+}
+
+/** Hourly connection counts over the last `hours`, split by intent — the trends chart's data. */
+export async function getTrends(db: Db, hours: number): Promise<TrendBucket[]> {
+	const since = new Date(Date.now() - hours * 3_600_000);
+	const bucket = sql<string>`date_trunc('hour', ${connections.receivedAt})`;
+	const rows = await db
+		.select({
+			bucket,
+			total: count(),
+			status: sql<number>`count(*) filter (where ${connections.intent} = 'status')`,
+			login: sql<number>`count(*) filter (where ${connections.intent} = 'login')`,
+		})
+		.from(connections)
+		.where(gte(connections.receivedAt, since))
+		.groupBy(bucket)
+		.orderBy(bucket);
+	return rows.map((r) => ({
+		bucket: new Date(r.bucket).toISOString(),
+		total: Number(r.total),
+		status: Number(r.status),
+		login: Number(r.login),
+	}));
+}
+
+export interface Offender {
+	srcIp: string | null;
+	hits: number;
+	logins: number;
+	daemonsHit: number;
+	lastSeen: Date;
+}
+
+/** Top source IPs by connection count over the window — a basic offenders list (scoring lands in M6). */
+export async function getOffenders(db: Db, windowHours: number, limit: number): Promise<Offender[]> {
+	const since = new Date(Date.now() - windowHours * 3_600_000);
+	const rows = await db
+		.select({
+			srcIp: connections.srcIp,
+			hits: count(),
+			logins: sql<number>`count(*) filter (where ${connections.intent} = 'login')`,
+			daemonsHit: countDistinct(connections.daemonId),
+			lastSeen: sql<Date>`max(${connections.receivedAt})`,
+		})
+		.from(connections)
+		.where(gte(connections.receivedAt, since))
+		.groupBy(connections.srcIp)
+		.orderBy(desc(count()))
+		.limit(Math.min(limit, 500));
+	return rows.map((r) => ({
+		srcIp: r.srcIp,
+		hits: Number(r.hits),
+		logins: Number(r.logins),
+		daemonsHit: Number(r.daemonsHit),
+		lastSeen: new Date(r.lastSeen),
+	}));
 }
 
 export interface Stats {

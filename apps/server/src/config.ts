@@ -9,8 +9,12 @@ export interface ServerConfig {
 	port: number;
 	host: string;
 	databaseUrl: string;
-	/** Bearer secret for admin routes (token minting, revocation). Real session auth comes later. */
+	/** Bearer secret for machine/CI admin calls (token minting, scripts). */
 	adminToken: string;
+	/** Password the dashboard operator logs in with. */
+	adminPassword: string;
+	/** HMAC key for signing dashboard session tokens. */
+	sessionSecret: string;
 }
 
 export function loadServerConfig(): ServerConfig {
@@ -18,10 +22,16 @@ export function loadServerConfig(): ServerConfig {
 	if (!databaseUrl) throw new Error("DATABASE_URL is required");
 	const adminToken = process.env.ADMIN_TOKEN;
 	if (!adminToken) throw new Error("ADMIN_TOKEN is required");
+	const adminPassword = process.env.ADMIN_PASSWORD;
+	if (!adminPassword) throw new Error("ADMIN_PASSWORD is required");
+	const sessionSecret = process.env.SESSION_SECRET;
+	if (!sessionSecret) throw new Error("SESSION_SECRET is required");
 	return {
 		port: envInt("PORT", 8080),
 		host: process.env.HOST ?? "0.0.0.0",
 		databaseUrl,
 		adminToken,
+		adminPassword,
+		sessionSecret,
 	};
 }

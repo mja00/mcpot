@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { Db } from "../db/client.ts";
 import { revokeDaemon } from "../db/daemons.ts";
 import { createEnrollmentToken } from "../db/tokens.ts";
-import { adminAuth } from "../auth/middleware.ts";
+import { dashboardAuth } from "../auth/middleware.ts";
 import { parseBody } from "./validate.ts";
 
 const CreateTokenRequest = z.object({
@@ -13,8 +13,8 @@ const CreateTokenRequest = z.object({
 });
 
 /** Operator endpoints: mint enrollment tokens, revoke a daemon's key. */
-export function registerAdminRoutes(app: FastifyInstance, db: Db, adminToken: string): void {
-	const admin = adminAuth(adminToken);
+export function registerAdminRoutes(app: FastifyInstance, db: Db, adminToken: string, sessionSecret: string): void {
+	const admin = dashboardAuth(adminToken, sessionSecret);
 
 	app.post("/v1/admin/tokens", { preHandler: admin }, async (req, reply) => {
 		const body = parseBody(CreateTokenRequest, req, reply);

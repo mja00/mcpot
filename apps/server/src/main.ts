@@ -5,7 +5,12 @@ import { loadServerConfig } from "./config.ts";
 const config = loadServerConfig();
 const client = createClient(config.databaseUrl);
 const db = createDb(client);
-const app = buildApp({ db, adminToken: config.adminToken });
+const app = buildApp({
+	db,
+	adminToken: config.adminToken,
+	adminPassword: config.adminPassword,
+	sessionSecret: config.sessionSecret,
+});
 
 try {
 	await app.listen({ port: config.port, host: config.host });

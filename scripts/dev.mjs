@@ -9,6 +9,8 @@ import { createInterface } from "node:readline";
 
 const DATABASE_URL = process.env.DATABASE_URL ?? "postgres://mcpot:mcpot@localhost:55432/mcpot";
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN ?? "dev-admin-token";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "dev-password";
+const SESSION_SECRET = process.env.SESSION_SECRET ?? "dev-session-secret";
 const SERVER_PORT = process.env.PORT ?? "8080";
 const SERVER_URL = `http://localhost:${SERVER_PORT}`;
 const DAEMON_PORT = process.env.MCPOT_PORT ?? "25565";
@@ -106,6 +108,8 @@ process.on("SIGTERM", () => shutdown(0));
 run("server", "node", [...NODE_TS, "apps/server/src/main.ts"], {
 	DATABASE_URL,
 	ADMIN_TOKEN,
+	ADMIN_PASSWORD,
+	SESSION_SECRET,
 	PORT: SERVER_PORT,
 });
 
@@ -133,4 +137,4 @@ run("web", "pnpm", ["--filter", "@mcpot/web", "dev"], {
 	VITE_API_TARGET: SERVER_URL,
 });
 
-log("dev", "all services starting — Ctrl+C to stop. Dashboard: http://localhost:5173");
+log("dev", `all services starting — Ctrl+C to stop. Dashboard: http://localhost:5173 (password: ${ADMIN_PASSWORD})`);
