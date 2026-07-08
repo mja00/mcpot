@@ -1,10 +1,10 @@
-# Override that binds the central stack to loopback only, for running behind a local reverse proxy
-# (e.g. nginx fronted by Cloudflare). Layer it on top of the full stack:
+# Override for running behind a local reverse proxy (e.g. nginx fronted by Cloudflare): only the
+# dashboard is published, loopback-only. The dashboard's nginx proxies /v1/ to the server over the
+# compose network, so daemons and admin API calls go through the same public URL. Layer it on:
 # `docker compose -f infra/docker-compose.full.yml -f infra/docker-compose.local-bind.yml up -d`
 services:
   server:
-    ports: !override
-      - "127.0.0.1:8080:8080"
+    ports: !reset []
 
   web:
     ports: !override

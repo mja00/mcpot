@@ -38,12 +38,16 @@ add `--build` to build from source instead.
 - Optional reporting sinks: set `ABUSEIPDB_KEY` and/or `WEBHOOK_URL`. Reporting is **manual** (a button per offender) — never automatic.
 
 Put the server/dashboard behind TLS (a reverse proxy) before exposing them publicly. When the proxy
-runs on the same machine, layer `docker-compose.local-bind.yml` on top so the ports only bind to
-loopback and can't be reached directly:
+runs on the same machine, layer `docker-compose.local-bind.yml` on top: it unpublishes the server
+entirely (the dashboard's nginx proxies `/v1/` to it over the compose network) and binds the
+dashboard to loopback only:
 
 ```bash
 docker compose -f infra/docker-compose.full.yml -f infra/docker-compose.local-bind.yml up -d
 ```
+
+Point your reverse proxy at `127.0.0.1:8081`. Daemons then use the same public URL as the
+dashboard for `MCPOT_SERVER_URL` (e.g. `https://mcpot.example.com`) — no separate API port.
 
 ## Deploying a daemon to a VPS
 
