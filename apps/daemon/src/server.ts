@@ -1,16 +1,16 @@
 import net, { type Server, type Socket } from "node:net";
-import type { ConnectionEvent, Persona } from "@mcpot/shared";
-import { ConnectionHandler } from "./connection-handler.ts";
+import type { ConnectionEvent } from "@mcpot/shared";
+import { ConnectionHandler, type HandlerConfig } from "./connection-handler.ts";
 import { ConnectionLimiter } from "./limits.ts";
 import { normalizeIp } from "./net-util.ts";
 
 export interface DaemonServerOptions {
 	listenPort: number;
-	persona: Persona;
+	/** Read per-connection so persona/timeout changes from a config poll take effect live. */
+	getHandlerConfig: () => HandlerConfig;
+	// Limits are applied once at accept time; changing them needs a restart (acceptable for now).
 	maxConcurrentConnections: number;
 	perIpConnectionsPerMinute: number;
-	handshakeTimeoutMs: number;
-	connectionTimeoutMs: number;
 	onEvent: (event: ConnectionEvent) => void;
 }
 
@@ -31,15 +31,7 @@ export function startDaemonServer(opts: DaemonServerOptions): Server {
 		}
 		socket.once("close", () => limiter.release());
 
-		const handler = new ConnectionHandler(
-			socket,
-			{
-				persona: opts.persona,
-				handshakeTimeoutMs: opts.handshakeTimeoutMs,
-				connectionTimeoutMs: opts.connectionTimeoutMs,
-			},
-			opts.onEvent,
-		);
+		const handler = new ConnectionHandler(socket, opts.getHandlerConfig(), opts.onEvent);
 		handler.start();
 	});
 

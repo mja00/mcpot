@@ -1,14 +1,27 @@
+import type { DaemonConfig, DaemonSettings } from "@mcpot/shared";
 import { DEFAULT_PERSONA } from "./persona.ts";
-import type { Persona } from "@mcpot/shared";
+import type { HandlerConfig } from "./connection-handler.ts";
+import type { ConfigHolder } from "./config-holder.ts";
 
-/** M1 daemon config sourced from env; M3 replaces this with the server-pushed config poll. */
-export interface DaemonRuntimeConfig {
+/** Fallback settings used before the first successful config poll (or in standalone mode). */
+export const DEFAULT_SETTINGS: DaemonSettings = {
+	listenPort: 25565,
+	batchSize: 100,
+	maxBatchDelayMs: 5000,
+	pollIntervalMs: 30000,
+	maxQueueEvents: 50000,
+	maxConcurrentConnections: 512,
+	perIpConnectionsPerMinute: 60,
+	handshakeTimeoutMs: 5000,
+	connectionTimeoutMs: 30000,
+};
+
+/** Env-sourced bootstrap. serverUrl absent → standalone mode (log events, no phone-home). */
+export interface BootstrapConfig {
+	serverUrl: string | null;
+	enrollmentToken: string | null;
+	stateDir: string;
 	listenPort: number;
-	persona: Persona;
-	maxConcurrentConnections: number;
-	perIpConnectionsPerMinute: number;
-	handshakeTimeoutMs: number;
-	connectionTimeoutMs: number;
 }
 
 function envInt(name: string, fallback: number): number {
@@ -18,13 +31,31 @@ function envInt(name: string, fallback: number): number {
 	return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-export function loadConfig(): DaemonRuntimeConfig {
+export function loadBootstrap(): BootstrapConfig {
 	return {
-		listenPort: envInt("MCPOT_PORT", 25565),
+		serverUrl: process.env.MCPOT_SERVER_URL ?? null,
+		enrollmentToken: process.env.MCPOT_ENROLLMENT_TOKEN ?? null,
+		stateDir: process.env.MCPOT_STATE_DIR ?? "./data",
+		listenPort: envInt("MCPOT_PORT", DEFAULT_SETTINGS.listenPort),
+	};
+}
+
+/** Config used before central is reachable, so the daemon serves a believable server immediately. */
+export function fallbackConfig(daemonId: string, listenPort: number): DaemonConfig {
+	return {
+		daemonId,
 		persona: DEFAULT_PERSONA,
-		maxConcurrentConnections: envInt("MCPOT_MAX_CONCURRENT", 512),
-		perIpConnectionsPerMinute: envInt("MCPOT_PER_IP_PER_MIN", 60),
-		handshakeTimeoutMs: envInt("MCPOT_HANDSHAKE_TIMEOUT_MS", 5000),
-		connectionTimeoutMs: envInt("MCPOT_CONN_TIMEOUT_MS", 30000),
+		settings: { ...DEFAULT_SETTINGS, listenPort },
+		revision: 0,
+	};
+}
+
+/** Snapshot the per-connection handler config from the live config holder. */
+export function handlerConfigFrom(holder: ConfigHolder): HandlerConfig {
+	const { settings } = holder.get();
+	return {
+		persona: holder.persona,
+		handshakeTimeoutMs: settings.handshakeTimeoutMs,
+		connectionTimeoutMs: settings.connectionTimeoutMs,
 	};
 }

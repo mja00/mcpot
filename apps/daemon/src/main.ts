@@ -1,23 +1,78 @@
-import { loadConfig } from "./config.ts";
+import { join } from "node:path";
+import { DEFAULT_SETTINGS, fallbackConfig, handlerConfigFrom, loadBootstrap } from "./config.ts";
 import { startDaemonServer } from "./server.ts";
+import { EventQueue } from "./queue.ts";
+import { hasIdentity, loadState } from "./state.ts";
+import { ensureEnrolled } from "./enroll.ts";
+import { ConfigHolder } from "./config-holder.ts";
+import { DaemonAgent } from "./agent.ts";
 
-// M1: log each captured connection as a JSON line to stdout. M3 swaps this sink for the durable
-// phone-home queue; the ConnectionEvent shape stays identical.
-const config = loadConfig();
+const boot = loadBootstrap();
 
-const server = startDaemonServer({
-	...config,
-	onEvent: (event) => process.stdout.write(`${JSON.stringify(event)}\n`),
-});
-
-server.on("listening", () => {
-	process.stderr.write(
-		`mcpot daemon listening on :${config.listenPort} as "${config.persona.versionName}" (protocol ${config.persona.protocol})\n` +
-			`In a Minecraft client, add a server pointing at <this-host>:${config.listenPort} (e.g. 127.0.0.1:${config.listenPort}).\n` +
-			`Each connection is printed below as a JSON line.\n`,
+if (!boot.serverUrl) {
+	// Standalone mode: no central server configured, so just serve and log events (M1 behavior).
+	const holder = new ConfigHolder(fallbackConfig("standalone", boot.listenPort));
+	const server = startDaemonServer({
+		listenPort: boot.listenPort,
+		getHandlerConfig: () => handlerConfigFrom(holder),
+		maxConcurrentConnections: DEFAULT_SETTINGS.maxConcurrentConnections,
+		perIpConnectionsPerMinute: DEFAULT_SETTINGS.perIpConnectionsPerMinute,
+		onEvent: (event) => process.stdout.write(`${JSON.stringify(event)}\n`),
+	});
+	server.on("listening", () =>
+		process.stderr.write(
+			`mcpot daemon (standalone) listening on :${boot.listenPort} as "${holder.persona.versionName}"\n` +
+				`Set MCPOT_SERVER_URL + MCPOT_ENROLLMENT_TOKEN to phone home. Events print below.\n`,
+		),
 	);
-});
+	for (const sig of ["SIGINT", "SIGTERM"] as const) process.on(sig, () => server.close(() => process.exit(0)));
+} else {
+	const state = loadState(boot.stateDir);
+	if (!hasIdentity(state) && !boot.enrollmentToken) {
+		process.stderr.write("no stored identity and MCPOT_ENROLLMENT_TOKEN not set — cannot enroll\n");
+		process.exit(1);
+	}
 
-for (const sig of ["SIGINT", "SIGTERM"] as const) {
-	process.on(sig, () => server.close(() => process.exit(0)));
+	const identity = await ensureEnrolled(state, {
+		serverUrl: boot.serverUrl,
+		enrollmentToken: boot.enrollmentToken ?? "",
+		stateDir: boot.stateDir,
+	});
+
+	// Serve with fallback config immediately; the agent's first poll swaps in the real config.
+	const holder = new ConfigHolder(fallbackConfig(identity.daemonId, boot.listenPort));
+	const queue = new EventQueue(join(boot.stateDir, "queue.sqlite"), holder.get().settings.maxQueueEvents);
+
+	const server = startDaemonServer({
+		listenPort: boot.listenPort,
+		getHandlerConfig: () => handlerConfigFrom(holder),
+		maxConcurrentConnections: holder.get().settings.maxConcurrentConnections,
+		perIpConnectionsPerMinute: holder.get().settings.perIpConnectionsPerMinute,
+		onEvent: (event) => queue.enqueue(event),
+	});
+
+	const agent = new DaemonAgent({
+		serverUrl: boot.serverUrl,
+		daemonId: identity.daemonId,
+		apiKey: identity.apiKey,
+		queue,
+		config: holder,
+	});
+	agent.start();
+
+	server.on("listening", () =>
+		process.stderr.write(
+			`mcpot daemon listening on :${boot.listenPort}, phoning home to ${boot.serverUrl} (daemon ${identity.daemonId})\n`,
+		),
+	);
+
+	for (const sig of ["SIGINT", "SIGTERM"] as const) {
+		process.on(sig, () => {
+			agent.stop();
+			server.close(() => {
+				queue.close();
+				process.exit(0);
+			});
+		});
+	}
 }

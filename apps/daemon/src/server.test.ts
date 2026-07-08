@@ -25,11 +25,13 @@ let servers: ReturnType<typeof startDaemonServer>[] = [];
 function launch(onEvent: (e: ConnectionEvent) => void): Promise<number> {
 	const server = startDaemonServer({
 		listenPort: 0,
-		persona: DEFAULT_PERSONA,
+		getHandlerConfig: () => ({
+			persona: DEFAULT_PERSONA,
+			handshakeTimeoutMs: 2000,
+			connectionTimeoutMs: 5000,
+		}),
 		maxConcurrentConnections: 64,
 		perIpConnectionsPerMinute: 1000,
-		handshakeTimeoutMs: 2000,
-		connectionTimeoutMs: 5000,
 		onEvent,
 	});
 	servers.push(server);
