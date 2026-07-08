@@ -21,7 +21,8 @@
     "db:migrate": "DATABASE_URL=postgres://mcpot:mcpot@localhost:55432/mcpot pnpm --filter @mcpot/server migrate",
     "serve": "pnpm libs && DATABASE_URL=postgres://mcpot:mcpot@localhost:55432/mcpot ADMIN_TOKEN=dev-admin-token PORT=8080 pnpm --filter @mcpot/server start",
     "web": "ADMIN_TOKEN=dev-admin-token VITE_API_TARGET=http://localhost:8080 pnpm --filter @mcpot/web dev",
-    "token": "curl -s -XPOST http://localhost:8080/v1/admin/tokens -H 'authorization: Bearer dev-admin-token' -H 'content-type: application/json' -d '{}'"
+    "token": "curl -s -XPOST http://localhost:8080/v1/admin/tokens -H 'authorization: Bearer dev-admin-token' -H 'content-type: application/json' -d '{}'",
+    "probe": "pnpm libs && node scripts/probe.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
