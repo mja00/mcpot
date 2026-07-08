@@ -1,5 +1,5 @@
 import { and, count, countDistinct, desc, eq, gte, isNotNull, ne, sql } from "drizzle-orm";
-import type { ConnectionEvent, OverviewResponse } from "@mcpot/shared";
+import type { ConnectionEvent, OverviewResponse, StreamConnection } from "@mcpot/shared";
 import type { Db } from "./client.ts";
 import { connections } from "./schema.ts";
 import { sanitizeString, toInetOrNull } from "../sanitize.ts";
@@ -9,6 +9,8 @@ import type { GeoService } from "../geo.ts";
 export interface IngestResult {
 	accepted: number;
 	duplicates: number;
+	/** Only the newly stored (non-duplicate) rows, with server-authoritative timestamps — SSE feed. */
+	inserted: StreamConnection[];
 }
 
 /**
@@ -41,15 +43,27 @@ export async function ingestEvents(db: Db, geo: GeoService, daemonId: string, ev
 			...geo.lookup(srcIp),
 		});
 	}
-	if (rows.length === 0) return { accepted: 0, duplicates: events.length };
+	if (rows.length === 0) return { accepted: 0, duplicates: events.length, inserted: [] };
 
-	const inserted = await db
-		.insert(connections)
-		.values(rows)
-		.onConflictDoNothing({ target: connections.eventId })
-		.returning({ eventId: connections.eventId });
+	const inserted = await db.insert(connections).values(rows).onConflictDoNothing({ target: connections.eventId }).returning();
 
-	return { accepted: inserted.length, duplicates: events.length - inserted.length };
+	return {
+		accepted: inserted.length,
+		duplicates: events.length - inserted.length,
+		inserted: inserted.map((r) => ({
+			eventId: r.eventId,
+			daemonId: r.daemonId,
+			receivedAt: r.receivedAt.toISOString(),
+			srcIp: r.srcIp,
+			protocolVersion: r.protocolVersion,
+			serverAddress: r.serverAddress,
+			intent: r.intent,
+			username: r.username,
+			countryCode: r.countryCode,
+			asn: r.asn,
+			asOrg: r.asOrg,
+		})),
+	};
 }
 
 export interface RecentConnection {

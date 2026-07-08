@@ -7,9 +7,10 @@ import { ingestEvents } from "../db/connections.ts";
 import { daemonAuth, requireOwnDaemon } from "../auth/middleware.ts";
 import { parseBody } from "./validate.ts";
 import type { GeoService } from "../geo.ts";
+import type { EventBus } from "../events/bus.ts";
 
 /** Daemon-facing endpoints: enrollment, event ingest, config poll, heartbeat. */
-export function registerDaemonRoutes(app: FastifyInstance, db: Db, geo: GeoService): void {
+export function registerDaemonRoutes(app: FastifyInstance, db: Db, geo: GeoService, bus: EventBus): void {
 	const auth = daemonAuth(db);
 
 	app.post("/v1/enroll", async (req, reply) => {
@@ -25,7 +26,8 @@ export function registerDaemonRoutes(app: FastifyInstance, db: Db, geo: GeoServi
 		const body = parseBody(IngestRequest, req, reply);
 		if (!body) return;
 		const result = await ingestEvents(db, geo, req.daemonId!, body.events);
-		return reply.send(result);
+		for (const event of result.inserted) bus.publishConnection(event);
+		return reply.send({ accepted: result.accepted, duplicates: result.duplicates });
 	});
 
 	app.get("/v1/daemons/:id/config", { preHandler: [auth, requireOwnDaemon] }, async (req, reply) => {
@@ -37,7 +39,8 @@ export function registerDaemonRoutes(app: FastifyInstance, db: Db, geo: GeoServi
 	app.post("/v1/daemons/:id/heartbeat", { preHandler: [auth, requireOwnDaemon] }, async (req, reply) => {
 		const body = parseBody(HeartbeatRequest, req, reply);
 		if (!body) return;
-		await recordHeartbeat(db, req.daemonId!, body);
+		const status = await recordHeartbeat(db, req.daemonId!, body);
+		if (status) bus.publishDaemon(status);
 		return reply.code(204).send();
 	});
 }
