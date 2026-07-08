@@ -12,6 +12,7 @@
     "start": "node --experimental-transform-types --disable-warning=ExperimentalWarning src/main.ts"
   },
   "dependencies": {
+    "@mcpot/protocol": "workspace:*",
     "@mcpot/shared": "workspace:*",
     "drizzle-orm": "^0.45.2",
     "drizzle-zod": "^0.8.3",

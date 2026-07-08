@@ -48,6 +48,9 @@ importers:
 
   apps/server:
     dependencies:
+      '@mcpot/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
       '@mcpot/shared':
         specifier: workspace:*
         version: link:../../packages/shared

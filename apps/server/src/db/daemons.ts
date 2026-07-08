@@ -3,7 +3,8 @@ import type { DaemonConfig, HeartbeatRequest } from "@mcpot/shared";
 import type { Db } from "./client.ts";
 import { daemons } from "./schema.ts";
 import { generateApiKey } from "../auth/keys.ts";
-import { DEFAULT_PERSONA, DEFAULT_SETTINGS } from "../defaults.ts";
+import { DEFAULT_SETTINGS } from "../defaults.ts";
+import { generatePersona } from "../persona-generator.ts";
 
 export interface EnrollResult {
 	daemonId: string;
@@ -24,7 +25,8 @@ export async function enrollDaemon(db: Db, machineId: string, hostname: string |
 			hostname,
 			apiKeyHash: hash,
 			apiKeyPrefix: prefix,
-			persona: DEFAULT_PERSONA,
+			// Seed the identity from the stable machineId so re-enrollment keeps the same server.
+			persona: generatePersona(machineId),
 			settings: DEFAULT_SETTINGS,
 		})
 		.onConflictDoUpdate({

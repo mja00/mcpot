@@ -6,6 +6,8 @@ import { z } from "zod";
  * jitter + a timezone offset keep hosts from correlating into an obvious fleet.
  */
 export const Persona = z.object({
+	/** Stable per-daemon seed; server and daemon derive identical variation (favicon, curve phase). */
+	seed: z.string(),
 	versionName: z.string(),
 	protocol: z.number().int(),
 	motd: z.string().max(256),

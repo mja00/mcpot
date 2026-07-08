@@ -14,7 +14,7 @@ import {
 	parseLoginStart,
 	parsePing,
 } from "@mcpot/protocol";
-import { buildStatusJson } from "./persona.ts";
+import { buildLiveStatusJson, pingLatencyMs } from "./render.ts";
 import { normalizeIp } from "./net-util.ts";
 
 type State = "handshake" | "status" | "login" | "done";
@@ -136,11 +136,16 @@ export class ConnectionHandler {
 			}
 			case "status": {
 				if (id === 0x00) {
-					this.socket.write(buildStatusResponse(buildStatusJson(this.config.persona, this.config.persona.basePlayers)));
+					this.socket.write(buildStatusResponse(buildLiveStatusJson(this.config.persona, Date.now())));
 				} else if (id === 0x01) {
 					this.pingCompleted = true;
-					this.socket.write(buildPong(parsePing(body)));
-					this.destroy();
+					const token = parsePing(body);
+					this.state = "done"; // stop processing; the delayed pong closes the connection
+					const delay = pingLatencyMs(this.config.persona);
+					setTimeout(() => {
+						if (!this.socket.destroyed) this.socket.write(buildPong(token));
+						this.destroy();
+					}, delay);
 				}
 				return;
 			}

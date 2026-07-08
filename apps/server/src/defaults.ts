@@ -1,19 +1,4 @@
-import type { DaemonSettings, Persona } from "@mcpot/shared";
-
-/** Persona assigned to a freshly enrolled daemon. Per-daemon seeding/variation lands in M4. */
-export const DEFAULT_PERSONA: Persona = {
-	versionName: "26.2",
-	protocol: 776,
-	motd: "A Minecraft Server",
-	maxPlayers: 20,
-	basePlayers: 3,
-	utcOffsetMinutes: 0,
-	curveJitter: 0.2,
-	faviconEnabled: false,
-	nameCorpus: ["Steve", "Alex", "Notch", "jeb_", "Herobrine"],
-	pingLatencyMinMs: 0,
-	pingLatencyMaxMs: 0,
-};
+import type { DaemonSettings } from "@mcpot/shared";
 
 /** Default runtime settings pushed to daemons via the config poll. */
 export const DEFAULT_SETTINGS: DaemonSettings = {
