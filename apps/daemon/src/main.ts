@@ -25,7 +25,12 @@ if (!boot.serverUrl) {
 				`Set MCPOT_SERVER_URL + MCPOT_ENROLLMENT_TOKEN to phone home. Events print below.\n`,
 		),
 	);
-	for (const sig of ["SIGINT", "SIGTERM"] as const) process.on(sig, () => server.close(() => process.exit(0)));
+	for (const sig of ["SIGINT", "SIGTERM"] as const) {
+		process.on(sig, () => {
+			server.close();
+			setTimeout(() => process.exit(0), 300).unref(); // don't hang on lingering sockets
+		});
+	}
 } else {
 	const state = loadState(boot.stateDir);
 	if (!hasIdentity(state) && !boot.enrollmentToken) {
@@ -69,10 +74,9 @@ if (!boot.serverUrl) {
 	for (const sig of ["SIGINT", "SIGTERM"] as const) {
 		process.on(sig, () => {
 			agent.stop();
-			server.close(() => {
-				queue.close();
-				process.exit(0);
-			});
+			server.close();
+			// WAL keeps the queue durable without an explicit close; force exit so we never hang.
+			setTimeout(() => process.exit(0), 300).unref();
 		});
 	}
 }
