@@ -1,0 +1,20 @@
+{
+  "name": "@mcpot/daemon",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "start": "node --experimental-transform-types --disable-warning=ExperimentalWarning src/main.ts"
+  },
+  "dependencies": {
+    "@mcpot/protocol": "workspace:*",
+    "@mcpot/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "vitest": "^2.1.8"
+  }
+}
