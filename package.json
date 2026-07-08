@@ -13,6 +13,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "typecheck": "pnpm -r typecheck",
+    "dev": "node scripts/dev.mjs",
     "libs": "pnpm --filter @mcpot/protocol --filter @mcpot/shared build",
     "daemon": "pnpm libs && node --experimental-transform-types --disable-warning=ExperimentalWarning apps/daemon/src/main.ts",
     "daemon:watch": "pnpm libs && node --experimental-transform-types --disable-warning=ExperimentalWarning --watch apps/daemon/src/main.ts",

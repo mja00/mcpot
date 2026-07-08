@@ -21,6 +21,19 @@ pnpm install
 
 ## Running locally
 
+Fastest path — start Postgres, then run the whole stack (server + daemon + web) in one shell with
+interleaved logs. The daemon auto-enrolls on first run; Ctrl+C stops everything.
+
+```bash
+pnpm db:up        # start Postgres (once)
+pnpm dev          # migrate + server + daemon + web, all logging to this shell
+```
+
+Then open the dashboard at http://localhost:5173 and generate a hit with `pnpm probe` (or point a
+real Minecraft client at `127.0.0.1:25565`).
+
+### Or run each piece separately
+
 Each command runs in its own terminal. Local dev defaults (DB URL, `dev-admin-token`) are baked
 into the root scripts — do **not** use these in production.
 
