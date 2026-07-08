@@ -82,6 +82,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@mcpot/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       echarts:
         specifier: ^6.1.0
         version: 6.1.0
