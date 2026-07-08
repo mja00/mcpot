@@ -1,0 +1,11 @@
+# Override that binds the central stack to loopback only, for running behind a local reverse proxy
+# (e.g. nginx fronted by Cloudflare). Layer it on top of the full stack:
+# `docker compose -f infra/docker-compose.full.yml -f infra/docker-compose.local-bind.yml up -d`
+services:
+  server:
+    ports: !override
+      - "127.0.0.1:8080:8080"
+
+  web:
+    ports: !override
+      - "127.0.0.1:8081:80"

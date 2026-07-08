@@ -37,7 +37,13 @@ add `--build` to build from source instead.
 - The server migrates the database on boot and runs the daily retention purge (`RETENTION_DAYS`, default 90).
 - Optional reporting sinks: set `ABUSEIPDB_KEY` and/or `WEBHOOK_URL`. Reporting is **manual** (a button per offender) — never automatic.
 
-Put the server/dashboard behind TLS (a reverse proxy) before exposing them publicly.
+Put the server/dashboard behind TLS (a reverse proxy) before exposing them publicly. When the proxy
+runs on the same machine, layer `docker-compose.local-bind.yml` on top so the ports only bind to
+loopback and can't be reached directly:
+
+```bash
+docker compose -f infra/docker-compose.full.yml -f infra/docker-compose.local-bind.yml up -d
+```
 
 ## Deploying a daemon to a VPS
 
