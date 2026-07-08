@@ -10,15 +10,20 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fontsource-variable/ibm-plex-sans": "^5.2.8",
+    "@fontsource/ibm-plex-mono": "^5.2.7",
     "@mcpot/shared": "workspace:*",
     "echarts": "^6.1.0",
     "pinia": "^2.3.0",
+    "reka-ui": "^2.10.1",
     "vue": "^3.5.13",
     "vue-echarts": "^8.0.1",
     "vue-router": "^5.1.0"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.3.2",
     "@vitejs/plugin-vue": "^5.2.1",
+    "tailwindcss": "^4.3.2",
     "vite": "^5.4.11",
     "vue-tsc": "^2.2.0"
   }
