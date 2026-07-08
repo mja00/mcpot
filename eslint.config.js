@@ -7,7 +7,7 @@ import globals from "globals";
 // source/config/tests, and Vue SFC support for the dashboard app.
 export default tseslint.config(
 	{
-		ignores: ["**/dist/**", "**/node_modules/**", "**/coverage/**", "**/*.d.ts"],
+		ignores: ["**/dist/**", "**/node_modules/**", "**/coverage/**", "**/*.d.ts", "**/persona-corpus.ts"],
 	},
 	js.configs.recommended,
 	...tseslint.configs.recommended,

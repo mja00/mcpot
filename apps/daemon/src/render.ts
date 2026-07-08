@@ -12,7 +12,7 @@ export function buildLiveStatusJson(persona: Persona, nowMs: number): string {
 		players: { max: persona.maxPlayers, online, ...(sample.length > 0 ? { sample } : {}) },
 		description: { text: persona.motd },
 		...(persona.faviconEnabled ? { favicon: getFavicon(persona.seed) } : {}),
-		enforcesSecureChat: false,
+		enforcesSecureChat: persona.enforcesSecureChat,
 	};
 	return serializeStatus(status);
 }

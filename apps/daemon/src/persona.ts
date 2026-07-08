@@ -15,6 +15,7 @@ export const DEFAULT_PERSONA: Persona = {
 	utcOffsetMinutes: 0,
 	curveJitter: 0.2,
 	faviconEnabled: false,
+	enforcesSecureChat: false,
 	nameCorpus: ["Steve", "Alex", "Notch", "jeb_", "Herobrine"],
 	pingLatencyMinMs: 0,
 	pingLatencyMaxMs: 0,

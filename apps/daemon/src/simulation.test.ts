@@ -13,6 +13,7 @@ const persona: Persona = {
 	utcOffsetMinutes: 0,
 	curveJitter: 0.2,
 	faviconEnabled: true,
+	enforcesSecureChat: false,
 	nameCorpus: Array.from({ length: 40 }, (_, i) => `player${i}`),
 	pingLatencyMinMs: 10,
 	pingLatencyMaxMs: 50,

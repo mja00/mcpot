@@ -19,6 +19,8 @@ export const Persona = z.object({
 	/** 0-1 random jitter applied to the curve so hosts don't share an identical shape. */
 	curveJitter: z.number().min(0).max(1),
 	faviconEnabled: z.boolean(),
+	/** Whether the status advertises secure-chat enforcement (varies in the wild; from real data). */
+	enforcesSecureChat: z.boolean(),
 	/** Names the sample roster draws from; large + distinct across hosts to resist correlation. */
 	nameCorpus: z.array(z.string()).max(2000),
 	pingLatencyMinMs: z.number().int().min(0),
