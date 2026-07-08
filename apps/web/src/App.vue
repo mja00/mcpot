@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { RouterLink, RouterView, useRoute, useRouter } from "vue-router";
 import { computed } from "vue";
+import { TooltipProvider } from "reka-ui";
 import { useAuthStore } from "./stores/auth";
+import UiToaster from "./components/ui/UiToaster.vue";
 
 const auth = useAuthStore();
 const route = useRoute();
@@ -16,21 +18,24 @@ function logout(): void {
 </script>
 
 <template>
-	<div class="shell">
-		<header v-if="showNav" class="nav">
-			<span class="brand">mcpot</span>
-			<nav>
-				<RouterLink to="/">Overview</RouterLink>
-				<RouterLink to="/trends">Trends</RouterLink>
-				<RouterLink to="/daemons">Daemons</RouterLink>
-				<RouterLink to="/offenders">Offenders</RouterLink>
-			</nav>
-			<button class="logout" @click="logout">Log out</button>
-		</header>
-		<main>
-			<RouterView />
-		</main>
-	</div>
+	<TooltipProvider>
+		<div class="shell">
+			<header v-if="showNav" class="nav">
+				<span class="brand">mcpot</span>
+				<nav>
+					<RouterLink to="/">Overview</RouterLink>
+					<RouterLink to="/trends">Trends</RouterLink>
+					<RouterLink to="/daemons">Daemons</RouterLink>
+					<RouterLink to="/offenders">Offenders</RouterLink>
+				</nav>
+				<button class="logout" @click="logout">Log out</button>
+			</header>
+			<main>
+				<RouterView />
+			</main>
+		</div>
+		<UiToaster />
+	</TooltipProvider>
 </template>
 
 <style scoped>
