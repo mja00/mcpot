@@ -15,7 +15,13 @@
     "typecheck": "pnpm -r typecheck",
     "libs": "pnpm --filter @mcpot/protocol --filter @mcpot/shared build",
     "daemon": "pnpm libs && node --experimental-transform-types --disable-warning=ExperimentalWarning apps/daemon/src/main.ts",
-    "daemon:watch": "pnpm libs && node --experimental-transform-types --disable-warning=ExperimentalWarning --watch apps/daemon/src/main.ts"
+    "daemon:watch": "pnpm libs && node --experimental-transform-types --disable-warning=ExperimentalWarning --watch apps/daemon/src/main.ts",
+    "db:up": "docker compose -f infra/docker-compose.yml up -d",
+    "db:down": "docker compose -f infra/docker-compose.yml down",
+    "db:migrate": "DATABASE_URL=postgres://mcpot:mcpot@localhost:55432/mcpot pnpm --filter @mcpot/server migrate",
+    "server": "pnpm libs && DATABASE_URL=postgres://mcpot:mcpot@localhost:55432/mcpot ADMIN_TOKEN=dev-admin-token PORT=8080 pnpm --filter @mcpot/server start",
+    "web": "ADMIN_TOKEN=dev-admin-token VITE_API_TARGET=http://localhost:8080 pnpm --filter @mcpot/web dev",
+    "token": "curl -s -XPOST http://localhost:8080/v1/admin/tokens -H 'authorization: Bearer dev-admin-token' -H 'content-type: application/json' -d '{}'"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
