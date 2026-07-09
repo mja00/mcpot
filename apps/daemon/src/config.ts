@@ -22,6 +22,8 @@ export interface BootstrapConfig {
 	enrollmentToken: string | null;
 	stateDir: string;
 	listenPort: number;
+	/** Display name override — in containers os.hostname() is just the container id. */
+	hostname: string | null;
 }
 
 function envInt(name: string, fallback: number): number {
@@ -37,6 +39,7 @@ export function loadBootstrap(): BootstrapConfig {
 		enrollmentToken: process.env.MCPOT_ENROLLMENT_TOKEN ?? null,
 		stateDir: process.env.MCPOT_STATE_DIR ?? "./data",
 		listenPort: envInt("MCPOT_PORT", DEFAULT_SETTINGS.listenPort),
+		hostname: process.env.MCPOT_HOSTNAME || null,
 	};
 }
 

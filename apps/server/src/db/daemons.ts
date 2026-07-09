@@ -71,6 +71,8 @@ export async function recordHeartbeat(db: Db, daemonId: string, hb: HeartbeatReq
 			lastSeenAt: new Date(),
 			queueDepth: hb.queueDepth,
 			uptimeSeconds: hb.uptimeSeconds,
+			// Renames (MCPOT_HOSTNAME) propagate here; absent on pre-M7 daemons, so leave as-is then.
+			...(hb.hostname !== undefined ? { hostname: hb.hostname } : {}),
 		})
 		.where(eq(daemons.id, daemonId))
 		.returning({ hostname: daemons.hostname, lastSeenAt: daemons.lastSeenAt, queueDepth: daemons.queueDepth });

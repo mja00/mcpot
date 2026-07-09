@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { hostname as osHostname } from "node:os";
 import { DEFAULT_SETTINGS, fallbackConfig, handlerConfigFrom, loadBootstrap } from "./config.ts";
 import { startDaemonServer } from "./server.ts";
 import { EventQueue } from "./queue.ts";
@@ -38,10 +39,12 @@ if (!boot.serverUrl) {
 		process.exit(1);
 	}
 
+	const displayName = boot.hostname ?? osHostname();
 	const identity = await ensureEnrolled(state, {
 		serverUrl: boot.serverUrl,
 		enrollmentToken: boot.enrollmentToken ?? "",
 		stateDir: boot.stateDir,
+		hostname: displayName,
 	});
 
 	// Serve with fallback config immediately; the agent's first poll swaps in the real config.
@@ -62,6 +65,7 @@ if (!boot.serverUrl) {
 		apiKey: identity.apiKey,
 		queue,
 		config: holder,
+		hostname: displayName,
 	});
 	agent.start();
 

@@ -8,6 +8,8 @@ export interface AgentOptions {
 	apiKey: string;
 	queue: EventQueue;
 	config: ConfigHolder;
+	/** Sent with every heartbeat so renames (MCPOT_HOSTNAME) apply without re-enrolling. */
+	hostname?: string;
 	/** Injectable clock for tests; defaults to Date.now. */
 	now?: () => number;
 }
@@ -107,6 +109,7 @@ export class DaemonAgent {
 				queueDepth: this.opts.queue.size(),
 				uptimeSeconds: Math.floor((this.now() - this.startedAt) / 1000),
 				configRevision: this.opts.config.revision,
+				...(this.opts.hostname ? { hostname: this.opts.hostname } : {}),
 			}),
 		});
 	}

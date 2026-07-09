@@ -104,12 +104,14 @@ docker run -d --name mcpot --restart unless-stopped \
   -v mcpot-data:/data \
   -e MCPOT_SERVER_URL='https://your-central-host:8080' \
   -e MCPOT_ENROLLMENT_TOKEN='<token-from-dashboard>' \
+  -e MCPOT_HOSTNAME='pot-de-1' \
   ghcr.io/mja00/mcpot-daemon:latest
 ```
 
 To build the image from source instead: `docker build -f infra/Dockerfile.daemon -t mcpot-daemon .`
 
 - The daemon enrolls once, persists its identity + durable queue in the `/data` volume, and phones home. Re-running with the same volume keeps the same daemon.
+- `MCPOT_HOSTNAME` names the daemon in the dashboard (without it, containers report their container id). It's sent on every heartbeat, so changing it renames an existing daemon on its next check-in — no re-enrollment needed.
 - Point real player traffic away from `:25565` — this is a honeypot; anything that connects is recorded.
 
 ## Scaling note: partitioning

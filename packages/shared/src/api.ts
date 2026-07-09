@@ -36,6 +36,8 @@ export const HeartbeatRequest = z.object({
 	uptimeSeconds: z.number().int().min(0),
 	/** Config revision the daemon currently has applied. */
 	configRevision: z.number().int(),
+	/** Current display name; optional so pre-M7 daemons keep heartbeating. Renames apply server-side. */
+	hostname: z.string().min(1).max(255).optional(),
 });
 export type HeartbeatRequest = z.infer<typeof HeartbeatRequest>;
 
