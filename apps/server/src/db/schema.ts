@@ -61,6 +61,7 @@ export const connections = pgTable(
 		asOrg: text("as_org"),
 	},
 	(t) => [
+		index("connections_received_at").on(t.receivedAt.desc()),
 		index("connections_daemon_ts").on(t.daemonId, t.receivedAt.desc()),
 		index("connections_srcip_ts").on(t.srcIp, t.receivedAt.desc()),
 		index("connections_intent_ts").on(t.intent, t.receivedAt.desc()),

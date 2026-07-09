@@ -8,6 +8,7 @@ import { verifySession } from "./session.ts";
 declare module "fastify" {
 	interface FastifyRequest {
 		daemonId?: string;
+		daemonHostname?: string | null;
 	}
 }
 
@@ -28,6 +29,7 @@ export function daemonAuth(db: Db) {
 		const daemon = await findDaemonByApiKey(db, hashSecret(key));
 		if (!daemon || daemon.revoked) return void reply.code(401).send({ error: "invalid or revoked key" });
 		req.daemonId = daemon.id;
+		req.daemonHostname = daemon.hostname;
 	};
 }
 

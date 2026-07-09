@@ -1,0 +1,424 @@
+{
+  "id": "294ae546-22f6-487a-8cab-661387af0c68",
+  "prevId": "e331bc8f-5ab0-419d-a875-f2f0f295f8b3",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.connections": {
+      "name": "connections",
+      "schema": "",
+      "columns": {
+        "event_id": {
+          "name": "event_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "daemon_id": {
+          "name": "daemon_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "received_at": {
+          "name": "received_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "observed_at": {
+          "name": "observed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "src_ip": {
+          "name": "src_ip",
+          "type": "inet",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "src_port": {
+          "name": "src_port",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "protocol_version": {
+          "name": "protocol_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "server_address": {
+          "name": "server_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "server_port": {
+          "name": "server_port",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "intent": {
+          "name": "intent",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ping_completed": {
+          "name": "ping_completed",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "username": {
+          "name": "username",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "player_uuid": {
+          "name": "player_uuid",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fingerprint": {
+          "name": "fingerprint",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "country_code": {
+          "name": "country_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "asn": {
+          "name": "asn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "as_org": {
+          "name": "as_org",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "connections_received_at": {
+          "name": "connections_received_at",
+          "columns": [
+            {
+              "expression": "received_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "connections_daemon_ts": {
+          "name": "connections_daemon_ts",
+          "columns": [
+            {
+              "expression": "daemon_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "received_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "connections_srcip_ts": {
+          "name": "connections_srcip_ts",
+          "columns": [
+            {
+              "expression": "src_ip",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "received_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "connections_intent_ts": {
+          "name": "connections_intent_ts",
+          "columns": [
+            {
+              "expression": "intent",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "received_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "connections_daemon_id_daemons_id_fk": {
+          "name": "connections_daemon_id_daemons_id_fk",
+          "tableFrom": "connections",
+          "tableTo": "daemons",
+          "columnsFrom": [
+            "daemon_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.daemons": {
+      "name": "daemons",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "machine_id": {
+          "name": "machine_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "hostname": {
+          "name": "hostname",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "api_key_hash": {
+          "name": "api_key_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "api_key_prefix": {
+          "name": "api_key_prefix",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "revoked": {
+          "name": "revoked",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "persona": {
+          "name": "persona",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "settings": {
+          "name": "settings",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "config_revision": {
+          "name": "config_revision",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "last_seen_at": {
+          "name": "last_seen_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_heartbeat_at": {
+          "name": "last_heartbeat_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "queue_depth": {
+          "name": "queue_depth",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "uptime_seconds": {
+          "name": "uptime_seconds",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "daemons_machine_id_unique": {
+          "name": "daemons_machine_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "machine_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.enrollment_tokens": {
+      "name": "enrollment_tokens",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "token_hash": {
+          "name": "token_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "label": {
+          "name": "label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "single_use": {
+          "name": "single_use",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "used_at": {
+          "name": "used_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "used_by_daemon": {
+          "name": "used_by_daemon",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "enrollment_tokens_used_by_daemon_daemons_id_fk": {
+          "name": "enrollment_tokens_used_by_daemon_daemons_id_fk",
+          "tableFrom": "enrollment_tokens",
+          "tableTo": "daemons",
+          "columnsFrom": [
+            "used_by_daemon"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "enrollment_tokens_token_hash_unique": {
+          "name": "enrollment_tokens_token_hash_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "token_hash"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

@@ -12,6 +12,8 @@ export {
 export {
 	Stats,
 	TrendBucket,
+	TrendSummary,
+	TrendsResponse,
 	RecentConnection,
 	DaemonListItem,
 	Offender,

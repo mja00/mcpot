@@ -18,14 +18,62 @@ export type Stats = z.infer<typeof Stats>;
 export const TrendBucket = z.object({
 	bucket: z.string(),
 	total: z.number().int(),
+	uniqueIps: z.number().int(),
 	status: z.number().int(),
 	login: z.number().int(),
+	other: z.number().int(),
 });
 export type TrendBucket = z.infer<typeof TrendBucket>;
+
+export const TrendSummary = z.object({
+	total: z.number().int(),
+	uniqueIps: z.number().int(),
+	loginCount: z.number().int(),
+	activeDaemons: z.number().int(),
+});
+export type TrendSummary = z.infer<typeof TrendSummary>;
+
+export const TrendsResponse = z.object({
+	range: z.object({
+		hours: z.number().int(),
+		bucketMinutes: z.number().int(),
+		from: z.string(),
+		to: z.string(),
+	}),
+	summary: z.object({ current: TrendSummary, previous: TrendSummary }),
+	series: z.array(TrendBucket),
+	countries: z.array(
+		z.object({ countryCode: z.string().nullable(), hits: z.number().int(), uniqueIps: z.number().int() }),
+	),
+	networks: z.array(
+		z.object({ asn: z.number().int().nullable(), asOrg: z.string().nullable(), hits: z.number().int(), uniqueIps: z.number().int() }),
+	),
+	serverAddresses: z.array(z.object({ serverAddress: z.string(), hits: z.number().int() })),
+	usernames: z.array(z.object({ username: z.string(), hits: z.number().int() })),
+	daemons: z.array(
+		z.object({
+			daemonId: z.string().uuid(),
+			daemonHostname: z.string().nullable(),
+			hits: z.number().int(),
+			share: z.number(),
+			uniqueIps: z.number().int(),
+			loginCount: z.number().int(),
+			revoked: z.boolean(),
+			lastSeenAt: z.string().nullable(),
+			queueDepth: z.number().int().nullable(),
+		}),
+	),
+	daemonSeries: z.object({
+		daemons: z.array(z.object({ daemonId: z.string().uuid(), daemonHostname: z.string().nullable() })),
+		buckets: z.array(z.object({ bucket: z.string(), counts: z.record(z.string(), z.number().int()), other: z.number().int() })),
+	}),
+});
+export type TrendsResponse = z.infer<typeof TrendsResponse>;
 
 export const RecentConnection = z.object({
 	eventId: z.string().uuid(),
 	daemonId: z.string().uuid(),
+	daemonHostname: z.string().nullable(),
 	receivedAt: z.string(),
 	srcIp: z.string().nullable(),
 	protocolVersion: z.number().int().nullable(),
@@ -88,6 +136,7 @@ export const OverviewResponse = z.object({
 	topServerAddresses: z.array(z.object({ serverAddress: z.string(), hits: z.number().int() })),
 	topUsernames: z.array(z.object({ username: z.string(), hits: z.number().int() })),
 	series: z.array(z.object({ bucket: z.string(), total: z.number().int() })),
+	daemonActivity: z.array(z.object({ daemonId: z.string().uuid(), hits: z.number().int() })),
 	/** Width of each series bucket so the client can label sparklines correctly. */
 	bucketMinutes: z.number().int(),
 });

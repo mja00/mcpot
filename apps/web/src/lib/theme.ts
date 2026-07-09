@@ -14,9 +14,11 @@ export interface ChartTheme {
 	ink: string;
 	grid: string;
 	fontFamily: string;
+	palette: string[];
 }
 
 export function chartTheme(): ChartTheme {
+	const value = (name: string) => cssVar(name);
 	return {
 		status: cssVar("--color-series-status"),
 		login: cssVar("--color-series-login"),
@@ -24,5 +26,15 @@ export function chartTheme(): ChartTheme {
 		ink: cssVar("--color-ink-secondary"),
 		grid: cssVar("--color-grid"),
 		fontFamily: cssVar("--font-sans"),
+		palette: [
+			value("--color-series-status"),
+			value("--color-series-login"),
+			value("--color-series-teal"),
+			value("--color-series-violet"),
+			value("--color-series-rose"),
+			value("--color-series-lime"),
+			value("--color-series-cyan"),
+			value("--color-series-slate"),
+		],
 	};
 }

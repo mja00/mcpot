@@ -1,7 +1,15 @@
-import { and, asc, count, countDistinct, desc, eq, gte, isNotNull, ne, sql } from "drizzle-orm";
-import type { ConnectionEvent, OffenderSortBy, OverviewResponse, SortOrder, StreamConnection } from "@mcpot/shared";
+import { and, asc, count, countDistinct, desc, eq, gte, isNotNull, lt, ne, sql } from "drizzle-orm";
+import type {
+	ConnectionEvent,
+	OffenderSortBy,
+	OverviewResponse,
+	SortOrder,
+	StreamConnection,
+	TrendSummary,
+	TrendsResponse,
+} from "@mcpot/shared";
 import type { Db } from "./client.ts";
-import { connections } from "./schema.ts";
+import { connections, daemons } from "./schema.ts";
 import { sanitizeString, toInetOrNull } from "../sanitize.ts";
 import { type Classification, classify, RAW_HOSTNAME_RATIO, SCORE_WEIGHTS, USERNAME_SPRAY_MIN } from "../classify.ts";
 import type { GeoService } from "../geo.ts";
@@ -19,7 +27,13 @@ export interface IngestResult {
  * and sanitize attacker-controlled strings. received_at defaults to server time (daemon clocks drift).
  * Geo enrichment happens here (not on read) so historic rows keep the geo of when they were seen.
  */
-export async function ingestEvents(db: Db, geo: GeoService, daemonId: string, events: ConnectionEvent[]): Promise<IngestResult> {
+export async function ingestEvents(
+	db: Db,
+	geo: GeoService,
+	daemonId: string,
+	daemonHostname: string | null,
+	events: ConnectionEvent[],
+): Promise<IngestResult> {
 	const seen = new Set<string>();
 	const rows = [];
 	for (const e of events) {
@@ -53,6 +67,7 @@ export async function ingestEvents(db: Db, geo: GeoService, daemonId: string, ev
 		inserted: inserted.map((r) => ({
 			eventId: r.eventId,
 			daemonId: r.daemonId,
+			daemonHostname,
 			receivedAt: r.receivedAt.toISOString(),
 			srcIp: r.srcIp,
 			protocolVersion: r.protocolVersion,
@@ -69,6 +84,7 @@ export async function ingestEvents(db: Db, geo: GeoService, daemonId: string, ev
 export interface RecentConnection {
 	eventId: string;
 	daemonId: string;
+	daemonHostname: string | null;
 	receivedAt: Date;
 	srcIp: string | null;
 	protocolVersion: number | null;
@@ -89,6 +105,7 @@ export async function listConnections(
 		.select({
 			eventId: connections.eventId,
 			daemonId: connections.daemonId,
+			daemonHostname: daemons.hostname,
 			receivedAt: connections.receivedAt,
 			srcIp: connections.srcIp,
 			protocolVersion: connections.protocolVersion,
@@ -100,6 +117,7 @@ export async function listConnections(
 			asOrg: connections.asOrg,
 		})
 		.from(connections)
+		.innerJoin(daemons, eq(connections.daemonId, daemons.id))
 		.orderBy(desc(connections.receivedAt))
 		.limit(Math.min(opts.limit, 1000));
 	if (opts.daemonId && opts.srcIp) {
@@ -110,34 +128,179 @@ export async function listConnections(
 	return base;
 }
 
-export interface TrendBucket {
-	bucket: string;
-	total: number;
-	status: number;
-	login: number;
+function trendBucketMinutes(hours: number): number {
+	if (hours <= 6) return 15;
+	if (hours <= 24) return 60;
+	if (hours <= 168) return 360;
+	return 1440;
 }
 
-/** Hourly connection counts over the last `hours`, split by intent — the trends chart's data. */
-export async function getTrends(db: Db, hours: number): Promise<TrendBucket[]> {
-	const since = new Date(Date.now() - hours * 3_600_000);
-	const bucket = sql<string>`date_trunc('hour', ${connections.receivedAt})`;
-	const rows = await db
+async function getTrendSummary(db: Db, from: Date, to: Date): Promise<TrendSummary> {
+	const [row] = await db
 		.select({
-			bucket,
 			total: count(),
-			status: sql<number>`count(*) filter (where ${connections.intent} = 'status')`,
-			login: sql<number>`count(*) filter (where ${connections.intent} = 'login')`,
+			uniqueIps: countDistinct(connections.srcIp),
+			loginCount: sql<number>`count(*) filter (where ${connections.intent} = 'login')`,
+			activeDaemons: countDistinct(connections.daemonId),
 		})
 		.from(connections)
-		.where(gte(connections.receivedAt, since))
-		.groupBy(bucket)
-		.orderBy(bucket);
-	return rows.map((r) => ({
-		bucket: new Date(r.bucket).toISOString(),
-		total: Number(r.total),
-		status: Number(r.status),
-		login: Number(r.login),
-	}));
+		.where(and(gte(connections.receivedAt, from), lt(connections.receivedAt, to)));
+	return {
+		total: Number(row?.total ?? 0),
+		uniqueIps: Number(row?.uniqueIps ?? 0),
+		loginCount: Number(row?.loginCount ?? 0),
+		activeDaemons: Number(row?.activeDaemons ?? 0),
+	};
+}
+
+/** Range-aligned aggregates for all three Trends tabs. */
+export async function getTrends(db: Db, hours: number): Promise<TrendsResponse> {
+	const to = new Date();
+	const durationMs = hours * 3_600_000;
+	const from = new Date(to.getTime() - durationMs);
+	const previousFrom = new Date(from.getTime() - durationMs);
+	const bucketMinutes = trendBucketMinutes(hours);
+	const bucketMs = bucketMinutes * 60_000;
+	const bucket = sql<string>`date_bin(${sql.raw(`make_interval(mins => ${bucketMinutes})`)}, ${connections.receivedAt}, 'epoch')`;
+	const currentWindow = and(gte(connections.receivedAt, from), lt(connections.receivedAt, to));
+
+	const [current, previous, seriesRows, countryRows, networkRows, addressRows, usernameRows, daemonRows, roster, daemonSeriesRows] =
+		await Promise.all([
+			getTrendSummary(db, from, to),
+			getTrendSummary(db, previousFrom, from),
+			db
+				.select({
+					bucket,
+					total: count(),
+					uniqueIps: countDistinct(connections.srcIp),
+					status: sql<number>`count(*) filter (where ${connections.intent} = 'status')`,
+					login: sql<number>`count(*) filter (where ${connections.intent} = 'login')`,
+				})
+				.from(connections)
+				.where(currentWindow)
+				.groupBy(bucket)
+				.orderBy(bucket),
+			db
+				.select({ countryCode: connections.countryCode, hits: count(), uniqueIps: countDistinct(connections.srcIp) })
+				.from(connections)
+				.where(currentWindow)
+				.groupBy(connections.countryCode)
+				.orderBy(desc(count()))
+				.limit(10),
+			db
+				.select({ asn: connections.asn, asOrg: connections.asOrg, hits: count(), uniqueIps: countDistinct(connections.srcIp) })
+				.from(connections)
+				.where(currentWindow)
+				.groupBy(connections.asn, connections.asOrg)
+				.orderBy(desc(count()))
+				.limit(10),
+			db
+				.select({ serverAddress: connections.serverAddress, hits: count() })
+				.from(connections)
+				.where(and(currentWindow, isNotNull(connections.serverAddress), ne(connections.serverAddress, "")))
+				.groupBy(connections.serverAddress)
+				.orderBy(desc(count()))
+				.limit(10),
+			db
+				.select({ username: connections.username, hits: count() })
+				.from(connections)
+				.where(and(currentWindow, eq(connections.intent, "login"), isNotNull(connections.username)))
+				.groupBy(connections.username)
+				.orderBy(desc(count()))
+				.limit(10),
+			db
+				.select({
+					daemonId: connections.daemonId,
+					hits: count(),
+					uniqueIps: countDistinct(connections.srcIp),
+					loginCount: sql<number>`count(*) filter (where ${connections.intent} = 'login')`,
+				})
+				.from(connections)
+				.where(currentWindow)
+				.groupBy(connections.daemonId),
+			db
+				.select({
+					daemonId: daemons.id,
+					daemonHostname: daemons.hostname,
+					revoked: daemons.revoked,
+					lastSeenAt: daemons.lastSeenAt,
+					queueDepth: daemons.queueDepth,
+				})
+				.from(daemons),
+			db
+				.select({ bucket, daemonId: connections.daemonId, total: count() })
+				.from(connections)
+				.where(currentWindow)
+				.groupBy(bucket, connections.daemonId)
+				.orderBy(bucket),
+		]);
+
+	const byDaemon = new Map(daemonRows.map((row) => [row.daemonId, row]));
+	const daemonRollups = roster
+		.map((daemon) => {
+			const activity = byDaemon.get(daemon.daemonId);
+			const hits = Number(activity?.hits ?? 0);
+			return {
+				...daemon,
+				lastSeenAt: daemon.lastSeenAt?.toISOString() ?? null,
+				hits,
+				share: current.total > 0 ? hits / current.total : 0,
+				uniqueIps: Number(activity?.uniqueIps ?? 0),
+				loginCount: Number(activity?.loginCount ?? 0),
+			};
+		})
+		.sort((a, b) => b.hits - a.hits || (a.daemonHostname ?? a.daemonId).localeCompare(b.daemonHostname ?? b.daemonId));
+	const topDaemonIds = new Set(daemonRollups.filter((daemon) => daemon.hits > 0).slice(0, 8).map((daemon) => daemon.daemonId));
+	const seriesByBucket = new Map(seriesRows.map((row) => [new Date(row.bucket).getTime(), row]));
+	const daemonByBucket = new Map<number, Map<string, number>>();
+	for (const row of daemonSeriesRows) {
+		const bucketTime = new Date(row.bucket).getTime();
+		const counts = daemonByBucket.get(bucketTime) ?? new Map<string, number>();
+		counts.set(row.daemonId, Number(row.total));
+		daemonByBucket.set(bucketTime, counts);
+	}
+
+	const series = [];
+	const daemonBuckets = [];
+	const firstBucket = Math.floor(from.getTime() / bucketMs) * bucketMs;
+	for (let time = firstBucket; time < to.getTime(); time += bucketMs) {
+		const row = seriesByBucket.get(time);
+		const total = Number(row?.total ?? 0);
+		const status = Number(row?.status ?? 0);
+		const login = Number(row?.login ?? 0);
+		const bucketIso = new Date(time).toISOString();
+		series.push({ bucket: bucketIso, total, uniqueIps: Number(row?.uniqueIps ?? 0), status, login, other: total - status - login });
+		const daemonCounts = daemonByBucket.get(time) ?? new Map<string, number>();
+		const counts: Record<string, number> = {};
+		let other = 0;
+		for (const [daemonId, hits] of daemonCounts) {
+			if (topDaemonIds.has(daemonId)) counts[daemonId] = hits;
+			else other += hits;
+		}
+		daemonBuckets.push({ bucket: bucketIso, counts, other });
+	}
+
+	return {
+		range: { hours, bucketMinutes, from: from.toISOString(), to: to.toISOString() },
+		summary: { current, previous },
+		series,
+		countries: countryRows.map((row) => ({ countryCode: row.countryCode, hits: Number(row.hits), uniqueIps: Number(row.uniqueIps) })),
+		networks: networkRows.map((row) => ({
+			asn: row.asn,
+			asOrg: row.asOrg,
+			hits: Number(row.hits),
+			uniqueIps: Number(row.uniqueIps),
+		})),
+		serverAddresses: addressRows.map((row) => ({ serverAddress: row.serverAddress!, hits: Number(row.hits) })),
+		usernames: usernameRows.map((row) => ({ username: row.username!, hits: Number(row.hits) })),
+		daemons: daemonRollups,
+		daemonSeries: {
+			daemons: daemonRollups
+				.filter((daemon) => topDaemonIds.has(daemon.daemonId))
+				.map((daemon) => ({ daemonId: daemon.daemonId, daemonHostname: daemon.daemonHostname })),
+			buckets: daemonBuckets,
+		},
+	};
 }
 
 export interface Offender {
@@ -262,7 +425,7 @@ export async function getOverview(db: Db, windowMinutes: number, topLimit: numbe
 	// server-computed integer, never user input.
 	const bucket = sql<string>`date_bin(${sql.raw(`make_interval(mins => ${bucketMinutes})`)}, ${connections.receivedAt}, 'epoch')`;
 
-	const [stats, intents, topServerAddresses, topUsernames, series] = await Promise.all([
+	const [stats, intents, topServerAddresses, topUsernames, series, daemonActivity] = await Promise.all([
 		getStats(db, windowMinutes),
 		db
 			.select({ intent: connections.intent, count: count() })
@@ -290,6 +453,12 @@ export async function getOverview(db: Db, windowMinutes: number, topLimit: numbe
 			.where(gte(connections.receivedAt, since))
 			.groupBy(bucket)
 			.orderBy(bucket),
+		db
+			.select({ daemonId: connections.daemonId, hits: count() })
+			.from(connections)
+			.where(gte(connections.receivedAt, since))
+			.groupBy(connections.daemonId)
+			.orderBy(desc(count())),
 	]);
 
 	return {
@@ -298,6 +467,7 @@ export async function getOverview(db: Db, windowMinutes: number, topLimit: numbe
 		topServerAddresses: topServerAddresses.map((r) => ({ serverAddress: r.serverAddress!, hits: Number(r.hits) })),
 		topUsernames: topUsernames.map((r) => ({ username: r.username!, hits: Number(r.hits) })),
 		series: series.map((r) => ({ bucket: new Date(r.bucket).toISOString(), total: Number(r.total) })),
+		daemonActivity: daemonActivity.map((r) => ({ daemonId: r.daemonId, hits: Number(r.hits) })),
 		bucketMinutes,
 	};
 }
