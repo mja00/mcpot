@@ -75,6 +75,15 @@ const { status: streamStatus } = useEventStream({
 const spark = computed(() => overview.value?.series.map((b) => b.total) ?? []);
 const stats = computed(() => overview.value?.stats ?? null);
 const onlineCount = computed(() => daemons.value.filter((d) => !d.revoked && isOnline(d.lastSeenAt)).length);
+const daemonHits = computed(() => new Map((overview.value?.daemonActivity ?? []).map((row) => [row.daemonId, row.hits])));
+const overviewDaemons = computed(() =>
+	[...daemons.value].sort((a, b) => {
+		const byHits = (daemonHits.value.get(b.id) ?? 0) - (daemonHits.value.get(a.id) ?? 0);
+		if (byHits !== 0) return byHits;
+		const byOnline = Number(!b.revoked && isOnline(b.lastSeenAt)) - Number(!a.revoked && isOnline(a.lastSeenAt));
+		return byOnline || (a.hostname ?? a.id).localeCompare(b.hostname ?? b.id);
+	}),
+);
 
 const maxHostnameHits = computed(() => Math.max(...(overview.value?.topServerAddresses.map((h) => h.hits) ?? []), 1));
 const maxUsernameHits = computed(() => Math.max(...(overview.value?.topUsernames.map((u) => u.hits) ?? []), 1));
@@ -128,9 +137,10 @@ onUnmounted(() => timer && clearInterval(timer));
 						<span class="font-mono text-xs text-ink-muted tabular-nums">{{ onlineCount }}/{{ daemons.length }} online</span>
 					</template>
 					<ul class="m-0 flex list-none flex-col gap-0.5 p-1">
-						<li v-for="d in daemons.slice(0, 8)" :key="d.id" class="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm">
+						<li v-for="d in overviewDaemons.slice(0, 8)" :key="d.id" class="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm">
 							<StatusDot :state="d.revoked ? 'critical' : isOnline(d.lastSeenAt) ? 'good' : 'off'" />
 							<span class="min-w-0 flex-1 truncate font-mono text-ink">{{ d.hostname ?? d.id.slice(0, 8) }}</span>
+							<span class="font-mono text-xs text-accent tabular-nums">{{ daemonHits.get(d.id) ?? 0 }} hits</span>
 							<span class="text-xs text-ink-muted">{{ d.revoked ? "revoked" : timeAgo(d.lastSeenAt) }}</span>
 						</li>
 						<li v-if="daemons.length === 0" class="px-2 py-4 text-center text-sm text-ink-muted">no daemons enrolled yet</li>

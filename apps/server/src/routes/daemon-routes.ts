@@ -25,7 +25,7 @@ export function registerDaemonRoutes(app: FastifyInstance, db: Db, geo: GeoServi
 	app.post("/v1/ingest", { preHandler: auth }, async (req, reply) => {
 		const body = parseBody(IngestRequest, req, reply);
 		if (!body) return;
-		const result = await ingestEvents(db, geo, req.daemonId!, body.events);
+		const result = await ingestEvents(db, geo, req.daemonId!, req.daemonHostname ?? null, body.events);
 		for (const event of result.inserted) bus.publishConnection(event);
 		return reply.send({ accepted: result.accepted, duplicates: result.duplicates });
 	});

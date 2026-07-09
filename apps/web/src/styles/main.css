@@ -22,6 +22,12 @@
 	--color-accent: #e8a33d;
 	--color-series-status: #6c9bd1;
 	--color-series-login: #e8a33d;
+	--color-series-teal: #58b6a5;
+	--color-series-violet: #9a86d7;
+	--color-series-rose: #d4778d;
+	--color-series-lime: #91b85c;
+	--color-series-cyan: #55aeba;
+	--color-series-slate: #7f8b99;
 	--color-good: #56b380;
 	--color-warn: #e8a33d;
 	--color-critical: #d96a57;
@@ -56,4 +62,3 @@
 		outline-offset: 2px;
 	}
 }
-

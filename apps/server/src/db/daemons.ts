@@ -39,13 +39,14 @@ export async function enrollDaemon(db: Db, machineId: string, hostname: string |
 
 export interface AuthedDaemon {
 	id: string;
+	hostname: string | null;
 	revoked: boolean;
 }
 
 /** Resolve a presented API key (by its hash) to a daemon; null if unknown. */
 export async function findDaemonByApiKey(db: Db, apiKeyHash: string): Promise<AuthedDaemon | null> {
 	const [row] = await db
-		.select({ id: daemons.id, revoked: daemons.revoked })
+		.select({ id: daemons.id, hostname: daemons.hostname, revoked: daemons.revoked })
 		.from(daemons)
 		.where(eq(daemons.apiKeyHash, apiKeyHash))
 		.limit(1);

@@ -8,13 +8,14 @@ const props = withDefaults(
 	defineProps<{
 		rows: RecentConnection[];
 		showSrcIp?: boolean;
+		showDaemon?: boolean;
 		showProtocol?: boolean;
 		timeStyle?: "time" | "datetime";
 		/** Event ids that just arrived over the stream — briefly pulsed amber. */
 		freshIds?: Set<string>;
 		emptyText?: string;
 	}>(),
-	{ showSrcIp: true, showProtocol: false, timeStyle: "time", freshIds: undefined, emptyText: "no connections yet" },
+	{ showSrcIp: true, showDaemon: true, showProtocol: false, timeStyle: "time", freshIds: undefined, emptyText: "no connections yet" },
 );
 
 const intentTone = {
@@ -33,7 +34,7 @@ function fmt(iso: string): string {
 	return props.timeStyle === "time" ? fmtTime(iso) : fmtDateTime(iso);
 }
 
-const colspan = 3 + (props.showSrcIp ? 1 : 0) + (props.showProtocol ? 1 : 0);
+const colspan = 4 + (props.showSrcIp ? 1 : 0) + (props.showDaemon ? 1 : 0) + (props.showProtocol ? 1 : 0);
 </script>
 
 <template>
@@ -43,6 +44,7 @@ const colspan = 3 + (props.showSrcIp ? 1 : 0) + (props.showProtocol ? 1 : 0);
 				<tr class="[&>th]:border-b [&>th]:border-grid [&>th]:px-3 [&>th]:py-2 [&>th]:text-left [&>th]:font-mono [&>th]:text-[11px] [&>th]:font-medium [&>th]:tracking-[0.14em] [&>th]:uppercase [&>th]:text-ink-muted">
 					<th>Time</th>
 					<th v-if="showSrcIp">Source IP</th>
+					<th v-if="showDaemon">Daemon</th>
 					<th>Hostname used</th>
 					<th v-if="showProtocol">Protocol</th>
 					<th>Intent</th>
@@ -61,13 +63,14 @@ const colspan = 3 + (props.showSrcIp ? 1 : 0) + (props.showProtocol ? 1 : 0);
 					<td v-if="showSrcIp" class="font-mono text-ink">
 						<span class="mr-1.5"><CountryFlag :country-code="c.countryCode" :asn="c.asn" :as-org="c.asOrg" /></span>{{ c.srcIp ?? "—" }}
 					</td>
+					<td v-if="showDaemon" class="max-w-44 truncate font-mono text-ink">{{ c.daemonHostname ?? c.daemonId.slice(0, 8) }}</td>
 					<td class="max-w-64 truncate font-mono text-ink-secondary">{{ c.serverAddress ?? "—" }}</td>
 					<td v-if="showProtocol" class="font-mono text-ink-secondary">{{ c.protocolVersion ?? "—" }}</td>
 					<td><UiBadge :tone="tone(c.intent)">{{ c.intent }}</UiBadge></td>
 					<td class="font-mono text-ink-secondary">{{ c.username ?? "—" }}</td>
 				</tr>
 				<tr v-if="rows.length === 0">
-					<td :colspan="colspan + 1" class="px-3 py-6 text-center text-ink-muted">{{ emptyText }}</td>
+					<td :colspan="colspan" class="px-3 py-6 text-center text-ink-muted">{{ emptyText }}</td>
 				</tr>
 			</tbody>
 		</table>

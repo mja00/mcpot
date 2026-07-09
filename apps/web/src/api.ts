@@ -13,9 +13,10 @@ import type {
 	SortOrder,
 	Stats,
 	TrendBucket,
+	TrendsResponse,
 } from "@mcpot/shared";
 
-export type { DaemonListItem, Offender, OffenderSortBy, OffendersResponse, OverviewResponse, RecentConnection, SortOrder, Stats, TrendBucket };
+export type { DaemonListItem, Offender, OffenderSortBy, OffendersResponse, OverviewResponse, RecentConnection, SortOrder, Stats, TrendBucket, TrendsResponse };
 
 const TOKEN_KEY = "mcpot_session";
 
@@ -59,7 +60,7 @@ export async function login(password: string): Promise<void> {
 export const fetchStats = (windowMinutes = 60) => req<Stats>(`/v1/stats?windowMinutes=${windowMinutes}`);
 export const fetchOverview = (windowMinutes = 60, topLimit = 10) =>
 	req<OverviewResponse>(`/v1/overview?windowMinutes=${windowMinutes}&topLimit=${topLimit}`);
-export const fetchTrends = (hours = 24) => req<TrendBucket[]>(`/v1/trends?hours=${hours}`);
+export const fetchTrends = (hours = 24) => req<TrendsResponse>(`/v1/trends?hours=${hours}`);
 export const fetchDaemons = () => req<DaemonListItem[]>(`/v1/daemons`);
 export const fetchOffenders = (
 	params: { windowHours?: number; limit?: number; offset?: number; sortBy?: OffenderSortBy; order?: SortOrder } = {},

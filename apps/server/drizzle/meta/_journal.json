@@ -15,6 +15,13 @@
       "when": 1783553460533,
       "tag": "0001_outgoing_mandarin",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783636119236,
+      "tag": "0002_public_mockingbird",
+      "breakpoints": true
     }
   ]
 }

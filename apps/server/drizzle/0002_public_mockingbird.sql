@@ -1,0 +1,1 @@
+CREATE INDEX "connections_received_at" ON "connections" USING btree ("received_at" DESC NULLS LAST);
