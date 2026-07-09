@@ -50,8 +50,11 @@ To geo-tag rows ingested before enrichment existed (re-runnable, `--dry-run` sup
 
 ```bash
 docker compose -f infra/docker-compose.full.yml exec server \
-  node --experimental-transform-types src/scripts/backfill-geo.ts
+  node --experimental-transform-types --disable-warning=ExperimentalWarning \
+  apps/server/src/scripts/backfill-geo.ts
 ```
+
+Append `--dry-run` to preview the per-IP lookups without writing anything.
 
 Put the server/dashboard behind TLS (a reverse proxy) before exposing them publicly. When the proxy
 runs on the same machine, layer `docker-compose.local-bind.yml` on top: it unpublishes the server
