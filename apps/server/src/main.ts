@@ -2,10 +2,12 @@ import { buildApp } from "./app.ts";
 import { createClient, createDb } from "./db/client.ts";
 import { loadServerConfig } from "./config.ts";
 import { scheduleRetention } from "./retention.ts";
+import { createGeoService } from "./geo.ts";
 
 const config = loadServerConfig();
 const client = createClient(config.databaseUrl);
 const db = createDb(client);
+const geo = await createGeoService(config.geoipDir);
 const app = buildApp({
 	db,
 	adminToken: config.adminToken,
@@ -13,6 +15,7 @@ const app = buildApp({
 	sessionSecret: config.sessionSecret,
 	abuseipdbKey: config.abuseipdbKey,
 	webhookUrl: config.webhookUrl,
+	geo,
 });
 
 const retention = scheduleRetention(db, config.retentionDays, (n) => {

@@ -55,6 +55,10 @@ export const connections = pgTable(
 		username: text("username"),
 		playerUuid: text("player_uuid"),
 		fingerprint: text("fingerprint"),
+		// GeoLite2 enrichment at ingest time; null when the mmdb files aren't mounted (dev/CI).
+		countryCode: text("country_code"),
+		asn: integer("asn"),
+		asOrg: text("as_org"),
 	},
 	(t) => [
 		index("connections_daemon_ts").on(t.daemonId, t.receivedAt.desc()),

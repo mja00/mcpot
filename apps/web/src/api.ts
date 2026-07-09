@@ -1,5 +1,18 @@
 // Same-origin API client hitting the /v1 dev proxy. Attaches the stored session token; a 401 clears
-// it and signals the caller to bounce to login. Response shapes are duck-typed (server validates).
+// it and signals the caller to bounce to login. Response shapes come from @mcpot/shared (types only).
+import type {
+	CreateTokenResponse,
+	DaemonListItem,
+	LoginResponse,
+	Offender,
+	OverviewResponse,
+	RecentConnection,
+	ReportResponse,
+	Stats,
+	TrendBucket,
+} from "@mcpot/shared";
+
+export type { DaemonListItem, Offender, OverviewResponse, RecentConnection, Stats, TrendBucket };
 
 const TOKEN_KEY = "mcpot_session";
 
@@ -36,57 +49,13 @@ async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export async function login(password: string): Promise<void> {
-	const { token } = await req<{ token: string }>("/v1/auth/login", { method: "POST", body: JSON.stringify({ password }) });
+	const { token } = await req<LoginResponse>("/v1/auth/login", { method: "POST", body: JSON.stringify({ password }) });
 	setToken(token);
 }
 
-export interface Stats {
-	windowMinutes: number;
-	total: number;
-	uniqueIps: number;
-	statusCount: number;
-	loginCount: number;
-	hitsPerMinute: number;
-}
-export interface TrendBucket {
-	bucket: string;
-	total: number;
-	status: number;
-	login: number;
-}
-export interface RecentConnection {
-	eventId: string;
-	daemonId: string;
-	receivedAt: string;
-	srcIp: string | null;
-	protocolVersion: number | null;
-	serverAddress: string | null;
-	intent: string;
-	username: string | null;
-}
-export interface DaemonListItem {
-	id: string;
-	hostname: string | null;
-	versionName: string;
-	revoked: boolean;
-	lastSeenAt: string | null;
-	queueDepth: number | null;
-	createdAt: string;
-}
-export interface Offender {
-	srcIp: string | null;
-	hits: number;
-	logins: number;
-	daemonsHit: number;
-	rawHostnameHits: number;
-	abnormalProtoHits: number;
-	distinctUsernames: number;
-	lastSeen: string;
-	score: number;
-	classification: "scanner" | "suspicious" | "prober";
-}
-
 export const fetchStats = (windowMinutes = 60) => req<Stats>(`/v1/stats?windowMinutes=${windowMinutes}`);
+export const fetchOverview = (windowMinutes = 60, topLimit = 10) =>
+	req<OverviewResponse>(`/v1/overview?windowMinutes=${windowMinutes}&topLimit=${topLimit}`);
 export const fetchTrends = (hours = 24) => req<TrendBucket[]>(`/v1/trends?hours=${hours}`);
 export const fetchDaemons = () => req<DaemonListItem[]>(`/v1/daemons`);
 export const fetchOffenders = (windowHours = 24, limit = 50) =>
@@ -99,6 +68,6 @@ export const fetchConnections = (params: { limit?: number; srcIp?: string; daemo
 	return req<RecentConnection[]>(`/v1/connections?${q}`);
 };
 export const revokeDaemon = (id: string) => req<void>(`/v1/admin/daemons/${id}/revoke`, { method: "POST", body: "{}" });
-export const createToken = () => req<{ token: string }>(`/v1/admin/tokens`, { method: "POST", body: "{}" });
+export const createToken = () => req<CreateTokenResponse>(`/v1/admin/tokens`, { method: "POST", body: "{}" });
 export const reportOffender = (srcIp: string) =>
-	req<{ reported: boolean; sinks: string[] }>(`/v1/admin/report`, { method: "POST", body: JSON.stringify({ srcIp }) });
+	req<ReportResponse>(`/v1/admin/report`, { method: "POST", body: JSON.stringify({ srcIp }) });

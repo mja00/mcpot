@@ -1,19 +1,38 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { onMounted, ref, watch } from "vue";
 import { fetchConnections, fetchOffenders, reportOffender, type Offender, type RecentConnection } from "../api";
 import { useAuthGuard } from "../composables/useAuthGuard";
+import { useToast } from "../composables/useToast";
+import { fmtDateTime } from "../lib/format";
+import PageHeader from "../components/PageHeader.vue";
+import Panel from "../components/Panel.vue";
+import ConnectionsTable from "../components/ConnectionsTable.vue";
+import CountryFlag from "../components/CountryFlag.vue";
+import UiBadge from "../components/ui/UiBadge.vue";
+import UiButton from "../components/ui/UiButton.vue";
+import UiSelect from "../components/ui/UiSelect.vue";
+import UiTooltip from "../components/ui/UiTooltip.vue";
 
 const guard = useAuthGuard();
+const { toast } = useToast();
 const offenders = ref<Offender[]>([]);
 const windowHours = ref(24);
 const selectedIp = ref<string | null>(null);
 const drilldown = ref<RecentConnection[]>([]);
-const reportMsg = ref<string | null>(null);
+
+const windows = [
+	{ label: "last 24h", value: 24 },
+	{ label: "last 7d", value: 168 },
+];
+
+const classTone = { scanner: "critical", suspicious: "warn", prober: "neutral" } as const;
 
 async function report(ip: string | null): Promise<void> {
 	if (!ip) return;
 	const res = await guard(() => reportOffender(ip));
-	if (res) reportMsg.value = res.reported ? `Reported ${ip} to: ${res.sinks.join(", ")}` : `No reporting sink configured for ${ip}`;
+	if (!res) return;
+	if (res.reported) toast(`Reported ${ip}`, { description: `Sent to: ${res.sinks.join(", ")}`, tone: "good" });
+	else toast(`No reporting sink configured`, { description: `${ip} was not reported — set ABUSEIPDB_KEY or WEBHOOK_URL on the server.` });
 }
 
 async function load(): Promise<void> {
@@ -28,117 +47,72 @@ async function drill(ip: string | null): Promise<void> {
 	if (rows) drilldown.value = rows;
 }
 
-function fmt(iso: string): string {
-	return new Date(iso).toLocaleString();
-}
-
+watch(windowHours, () => void load());
 onMounted(() => void load());
 </script>
 
 <template>
 	<section>
-		<div class="head">
-			<h1>Offenders</h1>
-			<select v-model.number="windowHours" @change="load">
-				<option :value="24">last 24h</option>
-				<option :value="168">last 7d</option>
-			</select>
-		</div>
+		<PageHeader title="Offenders" eyebrow="Honeypot network">
+			<template #actions>
+				<UiSelect v-model="windowHours" :options="windows" />
+			</template>
+		</PageHeader>
 
-		<p v-if="reportMsg" class="report-msg">{{ reportMsg }}</p>
-		<div class="card">
-			<table>
-				<thead>
-					<tr>
-						<th>source IP</th>
-						<th>class</th>
-						<th>score</th>
-						<th>hits</th>
-						<th>logins</th>
-						<th>daemons</th>
-						<th>last seen</th>
-						<th></th>
-					</tr>
-				</thead>
-				<tbody>
-					<tr v-for="o in offenders" :key="o.srcIp ?? 'null'" class="row" @click="drill(o.srcIp)">
-						<td>{{ o.srcIp ?? "—" }}</td>
-						<td><span class="badge" :class="o.classification">{{ o.classification }}</span></td>
-						<td>{{ o.score }}</td>
-						<td>{{ o.hits }}</td>
-						<td>{{ o.logins }}</td>
-						<td>{{ o.daemonsHit }}</td>
-						<td>{{ fmt(o.lastSeen) }}</td>
-						<td><button class="report" @click.stop="report(o.srcIp)">Report</button></td>
-					</tr>
-					<tr v-if="offenders.length === 0">
-						<td colspan="8">no offenders in this window</td>
-					</tr>
-				</tbody>
-			</table>
-		</div>
+		<Panel title="Top source IPs by activity">
+			<div class="overflow-x-auto">
+				<table class="w-full border-collapse text-sm tabular-nums">
+					<thead>
+						<tr class="[&>th]:border-b [&>th]:border-grid [&>th]:px-3 [&>th]:py-2 [&>th]:text-left [&>th]:font-mono [&>th]:text-[11px] [&>th]:font-medium [&>th]:tracking-[0.14em] [&>th]:uppercase [&>th]:text-ink-muted">
+							<th>Source IP</th>
+							<th>Network</th>
+							<th>Class</th>
+							<th>
+								<UiTooltip content="0–100 from scanner signals: raw-IP hostnames, abnormal protocol versions, distinct usernames, daemons hit">
+									<span>Score</span>
+								</UiTooltip>
+							</th>
+							<th>Hits</th>
+							<th>Logins</th>
+							<th>Daemons</th>
+							<th>Last seen</th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr
+							v-for="o in offenders"
+							:key="o.srcIp ?? 'null'"
+							class="cursor-pointer transition-colors hover:bg-raised [&>td]:border-b [&>td]:border-grid [&>td]:px-3 [&>td]:py-2"
+							:class="selectedIp === o.srcIp ? 'bg-raised' : ''"
+							@click="drill(o.srcIp)"
+						>
+							<td class="font-mono text-ink">
+								<span class="mr-1.5"><CountryFlag :country-code="o.countryCode" :as-org="o.asOrg" /></span>{{ o.srcIp ?? "—" }}
+							</td>
+							<td class="max-w-44 truncate text-ink-secondary">{{ o.asOrg ?? "—" }}</td>
+							<td><UiBadge :tone="classTone[o.classification]">{{ o.classification }}</UiBadge></td>
+							<td class="font-mono" :class="o.score >= 60 ? 'text-critical' : o.score >= 30 ? 'text-warn' : 'text-ink-secondary'">{{ o.score }}</td>
+							<td class="font-mono text-ink-secondary">{{ o.hits }}</td>
+							<td class="font-mono" :class="o.logins > 0 ? 'text-accent' : 'text-ink-secondary'">{{ o.logins }}</td>
+							<td class="font-mono text-ink-secondary">{{ o.daemonsHit }}</td>
+							<td class="whitespace-nowrap text-ink-secondary">{{ fmtDateTime(o.lastSeen) }}</td>
+							<td class="text-right">
+								<UiButton size="sm" @click.stop="report(o.srcIp)">Report</UiButton>
+							</td>
+						</tr>
+						<tr v-if="offenders.length === 0">
+							<td colspan="9" class="px-3 py-6 text-center text-ink-muted">no offenders in this window</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		</Panel>
 
-		<div v-if="selectedIp" class="card drill">
-			<h2>{{ selectedIp }} — activity across the fleet</h2>
-			<table>
-				<thead>
-					<tr>
-						<th>time</th>
-						<th>hostname used</th>
-						<th>protocol</th>
-						<th>intent</th>
-						<th>username</th>
-					</tr>
-				</thead>
-				<tbody>
-					<tr v-for="c in drilldown" :key="c.eventId">
-						<td>{{ fmt(c.receivedAt) }}</td>
-						<td>{{ c.serverAddress ?? "—" }}</td>
-						<td>{{ c.protocolVersion ?? "—" }}</td>
-						<td>{{ c.intent }}</td>
-						<td>{{ c.username ?? "—" }}</td>
-					</tr>
-				</tbody>
-			</table>
+		<div v-if="selectedIp" class="mt-4">
+			<Panel :title="`${selectedIp} · activity across the fleet`">
+				<ConnectionsTable :rows="drilldown" :show-src-ip="false" show-protocol time-style="datetime" empty-text="no recorded activity" />
+			</Panel>
 		</div>
 	</section>
 </template>
-
-<style scoped>
-.head {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-}
-.row {
-	cursor: pointer;
-}
-.row:hover {
-	background: var(--page);
-}
-.drill {
-	margin-top: 1.5rem;
-}
-.badge {
-	font-size: 0.75rem;
-	padding: 0.1rem 0.45rem;
-	border-radius: 999px;
-	border: 1px solid var(--border);
-	text-transform: capitalize;
-}
-.badge.scanner {
-	color: var(--critical);
-	border-color: var(--critical);
-}
-.badge.suspicious {
-	color: #b06a00;
-}
-.report {
-	font-size: 0.8rem;
-	padding: 0.2rem 0.5rem;
-}
-.report-msg {
-	color: var(--text-secondary);
-	font-size: 0.9rem;
-}
-</style>

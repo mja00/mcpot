@@ -1,31 +1,36 @@
-import { and, count, countDistinct, desc, eq, gte, sql } from "drizzle-orm";
-import type { ConnectionEvent } from "@mcpot/shared";
+import { and, count, countDistinct, desc, eq, gte, isNotNull, ne, sql } from "drizzle-orm";
+import type { ConnectionEvent, OverviewResponse, StreamConnection } from "@mcpot/shared";
 import type { Db } from "./client.ts";
 import { connections } from "./schema.ts";
 import { sanitizeString, toInetOrNull } from "../sanitize.ts";
 import { type Classification, classify } from "../classify.ts";
+import type { GeoService } from "../geo.ts";
 
 export interface IngestResult {
 	accepted: number;
 	duplicates: number;
+	/** Only the newly stored (non-duplicate) rows, with server-authoritative timestamps — SSE feed. */
+	inserted: StreamConnection[];
 }
 
 /**
  * Store a batch idempotently. event_id is the PK, so onConflictDoNothing makes retried batches safe.
  * We also dedupe within the batch first (a single INSERT can't reference the same conflict key twice)
  * and sanitize attacker-controlled strings. received_at defaults to server time (daemon clocks drift).
+ * Geo enrichment happens here (not on read) so historic rows keep the geo of when they were seen.
  */
-export async function ingestEvents(db: Db, daemonId: string, events: ConnectionEvent[]): Promise<IngestResult> {
+export async function ingestEvents(db: Db, geo: GeoService, daemonId: string, events: ConnectionEvent[]): Promise<IngestResult> {
 	const seen = new Set<string>();
 	const rows = [];
 	for (const e of events) {
 		if (seen.has(e.eventId)) continue;
 		seen.add(e.eventId);
+		const srcIp = toInetOrNull(e.srcIp);
 		rows.push({
 			eventId: e.eventId,
 			daemonId,
 			observedAt: new Date(e.observedAt),
-			srcIp: toInetOrNull(e.srcIp),
+			srcIp,
 			srcPort: e.srcPort,
 			protocolVersion: e.protocolVersion,
 			serverAddress: sanitizeString(e.serverAddress),
@@ -35,17 +40,30 @@ export async function ingestEvents(db: Db, daemonId: string, events: ConnectionE
 			username: sanitizeString(e.username),
 			playerUuid: e.playerUuid,
 			fingerprint: sanitizeString(e.fingerprint),
+			...geo.lookup(srcIp),
 		});
 	}
-	if (rows.length === 0) return { accepted: 0, duplicates: events.length };
+	if (rows.length === 0) return { accepted: 0, duplicates: events.length, inserted: [] };
 
-	const inserted = await db
-		.insert(connections)
-		.values(rows)
-		.onConflictDoNothing({ target: connections.eventId })
-		.returning({ eventId: connections.eventId });
+	const inserted = await db.insert(connections).values(rows).onConflictDoNothing({ target: connections.eventId }).returning();
 
-	return { accepted: inserted.length, duplicates: events.length - inserted.length };
+	return {
+		accepted: inserted.length,
+		duplicates: events.length - inserted.length,
+		inserted: inserted.map((r) => ({
+			eventId: r.eventId,
+			daemonId: r.daemonId,
+			receivedAt: r.receivedAt.toISOString(),
+			srcIp: r.srcIp,
+			protocolVersion: r.protocolVersion,
+			serverAddress: r.serverAddress,
+			intent: r.intent,
+			username: r.username,
+			countryCode: r.countryCode,
+			asn: r.asn,
+			asOrg: r.asOrg,
+		})),
+	};
 }
 
 export interface RecentConnection {
@@ -57,6 +75,9 @@ export interface RecentConnection {
 	serverAddress: string | null;
 	intent: string;
 	username: string | null;
+	countryCode: string | null;
+	asn: number | null;
+	asOrg: string | null;
 }
 
 /** Most recent events, optionally scoped to one daemon and/or source IP. */
@@ -74,6 +95,9 @@ export async function listConnections(
 			serverAddress: connections.serverAddress,
 			intent: connections.intent,
 			username: connections.username,
+			countryCode: connections.countryCode,
+			asn: connections.asn,
+			asOrg: connections.asOrg,
 		})
 		.from(connections)
 		.orderBy(desc(connections.receivedAt))
@@ -127,6 +151,8 @@ export interface Offender {
 	lastSeen: Date;
 	score: number;
 	classification: Classification;
+	countryCode: string | null;
+	asOrg: string | null;
 }
 
 /**
@@ -148,6 +174,9 @@ export async function getOffenders(db: Db, windowHours: number, limit: number): 
 			rawHostnameHits,
 			abnormalProtoHits: sql<number>`count(*) filter (where ${connections.protocolVersion} is null or ${connections.protocolVersion} <= 0)`,
 			distinctUsernames: sql<number>`count(distinct ${connections.username})`,
+			// Functionally dependent on the grouped src_ip; max() is just the cheap way to select it.
+			countryCode: sql<string | null>`max(${connections.countryCode})`,
+			asOrg: sql<string | null>`max(${connections.asOrg})`,
 		})
 		.from(connections)
 		.where(gte(connections.receivedAt, since))
@@ -165,7 +194,15 @@ export async function getOffenders(db: Db, windowHours: number, limit: number): 
 			distinctUsernames: Number(r.distinctUsernames),
 		};
 		const { score, label } = classify(signals);
-		return { srcIp: r.srcIp, ...signals, lastSeen: new Date(r.lastSeen), score, classification: label };
+		return {
+			srcIp: r.srcIp,
+			...signals,
+			lastSeen: new Date(r.lastSeen),
+			score,
+			classification: label,
+			countryCode: r.countryCode,
+			asOrg: r.asOrg,
+		};
 	});
 }
 
@@ -176,6 +213,58 @@ export interface Stats {
 	statusCount: number;
 	loginCount: number;
 	hitsPerMinute: number;
+}
+
+/**
+ * Everything the Overview page needs in one round trip: stats, per-intent counts, top targeted
+ * hostnames, top tried usernames, and a small time series for sparklines. Bucket width scales with
+ * the window (date_bin, Postgres 17) so the series stays at ~60 points regardless of window size.
+ */
+export async function getOverview(db: Db, windowMinutes: number, topLimit: number): Promise<OverviewResponse> {
+	const since = new Date(Date.now() - windowMinutes * 60_000);
+	const bucketMinutes = Math.max(1, Math.ceil(windowMinutes / 60));
+	// Inlined (not bound) so the SELECT and GROUP BY expressions parse identically; it's a
+	// server-computed integer, never user input.
+	const bucket = sql<string>`date_bin(${sql.raw(`make_interval(mins => ${bucketMinutes})`)}, ${connections.receivedAt}, 'epoch')`;
+
+	const [stats, intents, topServerAddresses, topUsernames, series] = await Promise.all([
+		getStats(db, windowMinutes),
+		db
+			.select({ intent: connections.intent, count: count() })
+			.from(connections)
+			.where(gte(connections.receivedAt, since))
+			.groupBy(connections.intent)
+			.orderBy(desc(count())),
+		db
+			.select({ serverAddress: connections.serverAddress, hits: count() })
+			.from(connections)
+			.where(and(gte(connections.receivedAt, since), isNotNull(connections.serverAddress), ne(connections.serverAddress, "")))
+			.groupBy(connections.serverAddress)
+			.orderBy(desc(count()))
+			.limit(topLimit),
+		db
+			.select({ username: connections.username, hits: count() })
+			.from(connections)
+			.where(and(gte(connections.receivedAt, since), eq(connections.intent, "login"), isNotNull(connections.username)))
+			.groupBy(connections.username)
+			.orderBy(desc(count()))
+			.limit(topLimit),
+		db
+			.select({ bucket, total: count() })
+			.from(connections)
+			.where(gte(connections.receivedAt, since))
+			.groupBy(bucket)
+			.orderBy(bucket),
+	]);
+
+	return {
+		stats,
+		intents: intents.map((r) => ({ intent: r.intent, count: Number(r.count) })),
+		topServerAddresses: topServerAddresses.map((r) => ({ serverAddress: r.serverAddress!, hits: Number(r.hits) })),
+		topUsernames: topUsernames.map((r) => ({ username: r.username!, hits: Number(r.hits) })),
+		series: series.map((r) => ({ bucket: new Date(r.bucket).toISOString(), total: Number(r.total) })),
+		bucketMinutes,
+	};
 }
 
 /** Rolling-window aggregates for the Overview page. "hit rate" = connections/min over the window. */

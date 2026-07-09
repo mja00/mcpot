@@ -1,5 +1,5 @@
 import { desc, eq } from "drizzle-orm";
-import type { DaemonConfig, HeartbeatRequest } from "@mcpot/shared";
+import type { DaemonConfig, HeartbeatRequest, StreamDaemonStatus } from "@mcpot/shared";
 import type { Db } from "./client.ts";
 import { daemons } from "./schema.ts";
 import { generateApiKey } from "../auth/keys.ts";
@@ -63,8 +63,8 @@ export async function getDaemonConfig(db: Db, daemonId: string): Promise<DaemonC
 	return { daemonId, persona: row.persona, settings: row.settings, revision: row.revision };
 }
 
-export async function recordHeartbeat(db: Db, daemonId: string, hb: HeartbeatRequest): Promise<void> {
-	await db
+export async function recordHeartbeat(db: Db, daemonId: string, hb: HeartbeatRequest): Promise<StreamDaemonStatus | null> {
+	const [row] = await db
 		.update(daemons)
 		.set({
 			lastHeartbeatAt: new Date(),
@@ -72,7 +72,15 @@ export async function recordHeartbeat(db: Db, daemonId: string, hb: HeartbeatReq
 			queueDepth: hb.queueDepth,
 			uptimeSeconds: hb.uptimeSeconds,
 		})
-		.where(eq(daemons.id, daemonId));
+		.where(eq(daemons.id, daemonId))
+		.returning({ hostname: daemons.hostname, lastSeenAt: daemons.lastSeenAt, queueDepth: daemons.queueDepth });
+	if (!row) return null;
+	return {
+		daemonId,
+		hostname: row.hostname,
+		lastSeenAt: row.lastSeenAt?.toISOString() ?? null,
+		queueDepth: row.queueDepth,
+	};
 }
 
 /** Revoke a daemon's key (compromise response). It must re-enroll to get a new one. */

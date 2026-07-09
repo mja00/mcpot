@@ -1,0 +1,59 @@
+@import "tailwindcss";
+@import "@fontsource-variable/ibm-plex-sans";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/600.css";
+
+/*
+ * Dark-only honeypot theme: warm charcoal chrome, honey-amber as the single attention color
+ * (logins, live activity, warnings), steel blue for status-ping background noise.
+ * `static` so chart-only tokens survive Tailwind's pruning — ECharts reads them via
+ * getComputedStyle, which the build can't see.
+ */
+@theme static {
+	--color-*: initial;
+	--color-page: #12100d;
+	--color-surface: #1a1814;
+	--color-raised: #211e19;
+	--color-line: #2c2820;
+	--color-grid: #26231d;
+	--color-ink: #ede9e0;
+	--color-ink-secondary: #a39d8f;
+	--color-ink-muted: #6f695c;
+	--color-accent: #e8a33d;
+	--color-series-status: #6c9bd1;
+	--color-series-login: #e8a33d;
+	--color-good: #56b380;
+	--color-warn: #e8a33d;
+	--color-critical: #d96a57;
+
+	--font-sans: "IBM Plex Sans Variable", system-ui, sans-serif;
+	--font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+	/* Amber wash that fades out on rows freshly arrived over the live stream. */
+	--animate-feed-in: feed-in 1.4s ease-out;
+	@keyframes feed-in {
+		from {
+			background-color: --alpha(var(--color-accent) / 16%);
+		}
+		to {
+			background-color: transparent;
+		}
+	}
+}
+
+@layer base {
+	:root {
+		color-scheme: dark;
+	}
+	body {
+		margin: 0;
+		background: var(--color-page);
+		color: var(--color-ink);
+		font-family: var(--font-sans);
+	}
+	:focus-visible {
+		outline: 2px solid var(--color-accent);
+		outline-offset: 2px;
+	}
+}
+

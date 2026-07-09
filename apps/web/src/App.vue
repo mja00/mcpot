@@ -1,11 +1,17 @@
 <script setup lang="ts">
-import { RouterLink, RouterView, useRoute, useRouter } from "vue-router";
+import { RouterView, useRoute, useRouter } from "vue-router";
 import { computed } from "vue";
+import { TooltipProvider } from "reka-ui";
 import { useAuthStore } from "./stores/auth";
+import { useEventStream } from "./composables/useEventStream";
+import AppNav from "./components/AppNav.vue";
+import LiveIndicator from "./components/LiveIndicator.vue";
+import UiToaster from "./components/ui/UiToaster.vue";
 
 const auth = useAuthStore();
 const route = useRoute();
 const router = useRouter();
+const { status: streamStatus } = useEventStream();
 
 const showNav = computed(() => auth.authed && route.name !== "login");
 
@@ -16,53 +22,17 @@ function logout(): void {
 </script>
 
 <template>
-	<div class="shell">
-		<header v-if="showNav" class="nav">
-			<span class="brand">mcpot</span>
-			<nav>
-				<RouterLink to="/">Overview</RouterLink>
-				<RouterLink to="/trends">Trends</RouterLink>
-				<RouterLink to="/daemons">Daemons</RouterLink>
-				<RouterLink to="/offenders">Offenders</RouterLink>
-			</nav>
-			<button class="logout" @click="logout">Log out</button>
-		</header>
-		<main>
-			<RouterView />
-		</main>
-	</div>
+	<TooltipProvider>
+		<div class="min-h-screen">
+			<AppNav v-if="showNav" @logout="logout">
+				<template #status>
+					<LiveIndicator v-if="streamStatus !== 'idle'" :status="streamStatus" />
+				</template>
+			</AppNav>
+			<main class="mx-auto max-w-[1400px] px-6 py-6 max-sm:px-4">
+				<RouterView />
+			</main>
+		</div>
+		<UiToaster />
+	</TooltipProvider>
 </template>
-
-<style scoped>
-.nav {
-	display: flex;
-	align-items: center;
-	gap: 1.5rem;
-	padding: 0.8rem 1.5rem;
-	background: var(--surface);
-	border-bottom: 1px solid var(--border);
-}
-.brand {
-	font-weight: 700;
-	letter-spacing: 0.02em;
-}
-nav {
-	display: flex;
-	gap: 1.2rem;
-	flex: 1;
-}
-nav a {
-	text-decoration: none;
-	color: var(--text-secondary);
-	padding-bottom: 2px;
-}
-nav a.router-link-active {
-	color: var(--text-primary);
-	border-bottom: 2px solid var(--series-status);
-}
-main {
-	max-width: 1000px;
-	margin: 1.5rem auto;
-	padding: 0 1.5rem;
-}
-</style>

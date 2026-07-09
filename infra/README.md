@@ -38,6 +38,21 @@ add `--build` to build from source instead.
 - The server migrates the database on boot and runs the daily retention purge (`RETENTION_DAYS`, default 90).
 - Optional reporting sinks: set `ABUSEIPDB_KEY` and/or `WEBHOOK_URL`. Reporting is **manual** (a button per offender) — never automatic.
 
+### GeoIP enrichment (optional)
+
+Set `MAXMIND_ACCOUNT_ID` and `MAXMIND_LICENSE_KEY` (free GeoLite2 account) in `infra/.env` and the
+`geoipupdate` sidecar keeps GeoLite2-Country/ASN databases fresh on a shared volume; the server
+hot-reloads them and stamps `country_code`/`asn`/`as_org` on new connections. Without credentials
+everything works, the geo columns just stay null. For local dev, drop the `.mmdb` files into a
+directory and point `GEOIP_DIR` at it.
+
+To geo-tag rows ingested before enrichment existed (re-runnable, `--dry-run` supported):
+
+```bash
+docker compose -f infra/docker-compose.full.yml exec server \
+  node --experimental-transform-types src/scripts/backfill-geo.ts
+```
+
 Put the server/dashboard behind TLS (a reverse proxy) before exposing them publicly. When the proxy
 runs on the same machine, layer `docker-compose.local-bind.yml` on top: it unpublishes the server
 entirely (the dashboard's nginx proxies `/v1/` to it over the compose network) and binds the
@@ -49,6 +64,32 @@ docker compose -f infra/docker-compose.full.yml -f infra/docker-compose.local-bi
 
 Point your reverse proxy at `127.0.0.1:8081`. Daemons then use the same public URL as the
 dashboard for `MCPOT_SERVER_URL` (e.g. `https://mcpot.example.com`) — no separate API port.
+
+### SSE through reverse proxies (Nginx Proxy Manager, Cloudflare)
+
+The dashboard's live feed is a long-lived `text/event-stream` response on `/v1/events/stream`.
+Every proxy between the browser and the server must pass it through unbuffered:
+
+- **The bundled web nginx** already ships a dedicated unbuffered location for it, and the server
+  also sends `X-Accel-Buffering: no`, which any nginx hop (including NPM) honors per-response.
+- **Nginx Proxy Manager**: usually works as-is because of that header. If the LIVE indicator
+  sticks at SYNC, add this to the proxy host's *Advanced* tab:
+
+  ```nginx
+  location /v1/events/stream {
+      proxy_pass $forward_scheme://$server:$port;
+      proxy_http_version 1.1;
+      proxy_set_header Connection "";
+      proxy_buffering off;
+      proxy_cache off;
+      proxy_read_timeout 1h;
+  }
+  ```
+
+- **Cloudflare (proxied DNS)**: streams SSE without buffering, but drops connections idle for
+  ~100 s — the server's 25 s heartbeat comments keep the stream under that. Don't add a cache
+  rule that caches `/v1/*`. The client auto-reconnects and refetches on any drop, so brief
+  proxy restarts self-heal.
 
 ## Deploying a daemon to a VPS
 

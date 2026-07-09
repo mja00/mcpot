@@ -9,6 +9,20 @@ export {
 	HeartbeatRequest,
 	ConfigResponse,
 } from "./api.js";
+export {
+	Stats,
+	TrendBucket,
+	RecentConnection,
+	DaemonListItem,
+	Offender,
+	OffenderClassification,
+	OverviewResponse,
+	StreamConnection,
+	StreamDaemonStatus,
+	LoginResponse,
+	CreateTokenResponse,
+	ReportResponse,
+} from "./dashboard.js";
 export { apiRequest, ApiError, type RequestOptions } from "./client.js";
 export {
 	hashString,

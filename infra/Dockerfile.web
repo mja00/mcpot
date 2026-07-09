@@ -4,9 +4,13 @@ WORKDIR /app
 RUN corepack enable
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml tsconfig.base.json ./
 COPY apps/web/package.json apps/web/
-RUN pnpm install --frozen-lockfile --filter @mcpot/web
+COPY packages/shared/package.json packages/shared/
+# `...` pulls workspace deps of web (@mcpot/shared) into the install.
+RUN pnpm install --frozen-lockfile --filter @mcpot/web...
+COPY packages/shared ./packages/shared
 COPY apps/web ./apps/web
-RUN pnpm --filter @mcpot/web build
+# shared must be built first so vue-tsc can resolve its dist types.
+RUN pnpm --filter @mcpot/shared build && pnpm --filter @mcpot/web build
 
 FROM nginx:alpine
 COPY infra/web-nginx.conf /etc/nginx/conf.d/default.conf
