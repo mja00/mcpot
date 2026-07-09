@@ -5,14 +5,17 @@ import type {
 	DaemonListItem,
 	LoginResponse,
 	Offender,
+	OffenderSortBy,
+	OffendersResponse,
 	OverviewResponse,
 	RecentConnection,
 	ReportResponse,
+	SortOrder,
 	Stats,
 	TrendBucket,
 } from "@mcpot/shared";
 
-export type { DaemonListItem, Offender, OverviewResponse, RecentConnection, Stats, TrendBucket };
+export type { DaemonListItem, Offender, OffenderSortBy, OffendersResponse, OverviewResponse, RecentConnection, SortOrder, Stats, TrendBucket };
 
 const TOKEN_KEY = "mcpot_session";
 
@@ -58,8 +61,17 @@ export const fetchOverview = (windowMinutes = 60, topLimit = 10) =>
 	req<OverviewResponse>(`/v1/overview?windowMinutes=${windowMinutes}&topLimit=${topLimit}`);
 export const fetchTrends = (hours = 24) => req<TrendBucket[]>(`/v1/trends?hours=${hours}`);
 export const fetchDaemons = () => req<DaemonListItem[]>(`/v1/daemons`);
-export const fetchOffenders = (windowHours = 24, limit = 50) =>
-	req<Offender[]>(`/v1/offenders?windowHours=${windowHours}&limit=${limit}`);
+export const fetchOffenders = (
+	params: { windowHours?: number; limit?: number; offset?: number; sortBy?: OffenderSortBy; order?: SortOrder } = {},
+) => {
+	const q = new URLSearchParams();
+	q.set("windowHours", String(params.windowHours ?? 24));
+	q.set("limit", String(params.limit ?? 50));
+	q.set("offset", String(params.offset ?? 0));
+	if (params.sortBy) q.set("sortBy", params.sortBy);
+	if (params.order) q.set("order", params.order);
+	return req<OffendersResponse>(`/v1/offenders?${q}`);
+};
 export const fetchConnections = (params: { limit?: number; srcIp?: string; daemonId?: string } = {}) => {
 	const q = new URLSearchParams();
 	q.set("limit", String(params.limit ?? 50));

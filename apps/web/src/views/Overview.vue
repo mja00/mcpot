@@ -38,12 +38,13 @@ async function refresh(): Promise<void> {
 		guard(() => fetchOverview(60, 8)),
 		guard(() => fetchConnections({ limit: 30 })),
 		guard(() => fetchDaemons()),
-		guard(() => fetchOffenders(24, 5)),
+		// Overview highlights the *busiest* IPs, so keep hits ordering rather than the lastSeen default.
+		guard(() => fetchOffenders({ windowHours: 24, limit: 5, sortBy: "hits", order: "desc" })),
 	]);
 	if (o) overview.value = o;
 	if (c) connections.value = c;
 	if (d) daemons.value = d;
-	if (off) offenders.value = off;
+	if (off) offenders.value = off.rows;
 }
 
 // SSE drives the live feed; windowed aggregates stay poll-based because events also age *out* of

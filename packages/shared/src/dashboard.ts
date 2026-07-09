@@ -52,6 +52,12 @@ export type DaemonListItem = z.infer<typeof DaemonListItem>;
 export const OffenderClassification = z.enum(["scanner", "suspicious", "prober"]);
 export type OffenderClassification = z.infer<typeof OffenderClassification>;
 
+export const OffenderSortBy = z.enum(["lastSeen", "hits", "logins", "daemonsHit", "score"]);
+export type OffenderSortBy = z.infer<typeof OffenderSortBy>;
+
+export const SortOrder = z.enum(["asc", "desc"]);
+export type SortOrder = z.infer<typeof SortOrder>;
+
 export const Offender = z.object({
 	srcIp: z.string().nullable(),
 	hits: z.number().int(),
@@ -67,6 +73,13 @@ export const Offender = z.object({
 	asOrg: z.string().nullable(),
 });
 export type Offender = z.infer<typeof Offender>;
+
+/** GET /v1/offenders — one page of offenders plus the total group count for page controls. */
+export const OffendersResponse = z.object({
+	rows: z.array(Offender),
+	total: z.number().int(),
+});
+export type OffendersResponse = z.infer<typeof OffendersResponse>;
 
 /** GET /v1/overview — everything the Overview page needs in one call. */
 export const OverviewResponse = z.object({

@@ -1,6 +1,14 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from "vue";
-import { fetchConnections, fetchOffenders, reportOffender, type Offender, type RecentConnection } from "../api";
+import { computed, onMounted, ref, watch } from "vue";
+import {
+	fetchConnections,
+	fetchOffenders,
+	reportOffender,
+	type Offender,
+	type OffenderSortBy,
+	type RecentConnection,
+	type SortOrder,
+} from "../api";
 import { useAuthGuard } from "../composables/useAuthGuard";
 import { useToast } from "../composables/useToast";
 import { fmtDateTime } from "../lib/format";
@@ -19,6 +27,12 @@ const offenders = ref<Offender[]>([]);
 const windowHours = ref(24);
 const selectedIp = ref<string | null>(null);
 const drilldown = ref<RecentConnection[]>([]);
+const sortBy = ref<OffenderSortBy>("lastSeen");
+const order = ref<SortOrder>("desc");
+const page = ref(1);
+const pageSize = 50;
+const total = ref(0);
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize)));
 
 const windows = [
 	{ label: "last 24h", value: 24 },
@@ -36,8 +50,36 @@ async function report(ip: string | null): Promise<void> {
 }
 
 async function load(): Promise<void> {
-	const o = await guard(() => fetchOffenders(windowHours.value, 50));
-	if (o) offenders.value = o;
+	const res = await guard(() =>
+		fetchOffenders({
+			windowHours: windowHours.value,
+			limit: pageSize,
+			offset: (page.value - 1) * pageSize,
+			sortBy: sortBy.value,
+			order: order.value,
+		}),
+	);
+	if (!res) return;
+	offenders.value = res.rows;
+	total.value = res.total;
+	// The window slid or rows were purged since the last fetch — snap back to page 1.
+	if (res.rows.length === 0 && page.value > 1) page.value = 1;
+}
+
+function setSort(col: OffenderSortBy): void {
+	if (sortBy.value === col) order.value = order.value === "desc" ? "asc" : "desc";
+	else {
+		sortBy.value = col;
+		order.value = "desc";
+	}
+}
+
+function indicator(col: OffenderSortBy): string {
+	return sortBy.value === col ? (order.value === "desc" ? "▼" : "▲") : "";
+}
+
+function ariaSort(col: OffenderSortBy): "ascending" | "descending" | "none" {
+	return sortBy.value === col ? (order.value === "desc" ? "descending" : "ascending") : "none";
 }
 
 async function drill(ip: string | null): Promise<void> {
@@ -47,7 +89,12 @@ async function drill(ip: string | null): Promise<void> {
 	if (rows) drilldown.value = rows;
 }
 
-watch(windowHours, () => void load());
+// A param change on a later page resets to page 1, whose watcher fires the load — avoids a double fetch.
+watch([windowHours, sortBy, order], () => {
+	if (page.value !== 1) page.value = 1;
+	else void load();
+});
+watch(page, () => void load());
 onMounted(() => void load());
 </script>
 
@@ -67,15 +114,24 @@ onMounted(() => void load());
 							<th>Source IP</th>
 							<th>Network</th>
 							<th>Class</th>
-							<th>
+							<th class="cursor-pointer select-none" :aria-sort="ariaSort('score')" @click="setSort('score')">
 								<UiTooltip content="0–100 from scanner signals: raw-IP hostnames, abnormal protocol versions, distinct usernames, daemons hit">
 									<span>Score</span>
 								</UiTooltip>
+								<span class="ml-1">{{ indicator("score") }}</span>
 							</th>
-							<th>Hits</th>
-							<th>Logins</th>
-							<th>Daemons</th>
-							<th>Last seen</th>
+							<th class="cursor-pointer select-none" :aria-sort="ariaSort('hits')" @click="setSort('hits')">
+								Hits<span class="ml-1">{{ indicator("hits") }}</span>
+							</th>
+							<th class="cursor-pointer select-none" :aria-sort="ariaSort('logins')" @click="setSort('logins')">
+								Logins<span class="ml-1">{{ indicator("logins") }}</span>
+							</th>
+							<th class="cursor-pointer select-none" :aria-sort="ariaSort('daemonsHit')" @click="setSort('daemonsHit')">
+								Daemons<span class="ml-1">{{ indicator("daemonsHit") }}</span>
+							</th>
+							<th class="cursor-pointer select-none whitespace-nowrap" :aria-sort="ariaSort('lastSeen')" @click="setSort('lastSeen')">
+								Last seen<span class="ml-1">{{ indicator("lastSeen") }}</span>
+							</th>
 							<th></th>
 						</tr>
 					</thead>
@@ -106,6 +162,14 @@ onMounted(() => void load());
 						</tr>
 					</tbody>
 				</table>
+			</div>
+			<div class="flex items-center justify-between px-3 pt-3 text-xs text-ink-muted">
+				<span class="tabular-nums">{{ total }} source IPs</span>
+				<div class="flex items-center gap-2">
+					<UiButton size="sm" :disabled="page <= 1" @click="page--">Prev</UiButton>
+					<span class="tabular-nums">page {{ page }} of {{ totalPages }}</span>
+					<UiButton size="sm" :disabled="page >= totalPages" @click="page++">Next</UiButton>
+				</div>
 			</div>
 		</Panel>
 

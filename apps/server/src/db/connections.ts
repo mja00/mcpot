@@ -1,9 +1,9 @@
-import { and, count, countDistinct, desc, eq, gte, isNotNull, ne, sql } from "drizzle-orm";
-import type { ConnectionEvent, OverviewResponse, StreamConnection } from "@mcpot/shared";
+import { and, asc, count, countDistinct, desc, eq, gte, isNotNull, ne, sql } from "drizzle-orm";
+import type { ConnectionEvent, OffenderSortBy, OverviewResponse, SortOrder, StreamConnection } from "@mcpot/shared";
 import type { Db } from "./client.ts";
 import { connections } from "./schema.ts";
 import { sanitizeString, toInetOrNull } from "../sanitize.ts";
-import { type Classification, classify } from "../classify.ts";
+import { type Classification, classify, RAW_HOSTNAME_RATIO, SCORE_WEIGHTS, USERNAME_SPRAY_MIN } from "../classify.ts";
 import type { GeoService } from "../geo.ts";
 
 export interface IngestResult {
@@ -155,36 +155,70 @@ export interface Offender {
 	asOrg: string | null;
 }
 
+export interface OffendersPage {
+	rows: Offender[];
+	total: number;
+}
+
+export interface OffendersOpts {
+	windowHours: number;
+	limit: number;
+	offset: number;
+	sortBy: OffenderSortBy;
+	order: SortOrder;
+}
+
 /**
- * Top source IPs over the window with a scanner classification. `since` defaults to a rolling window;
- * pass a UTC day boundary for the "daily rotating" offenders list. Classification signals are computed
- * in one aggregation pass (raw-IP hostname, abnormal protocol, distinct usernames) and scored in JS.
+ * One sorted page of source IPs over a rolling window, with a scanner classification. Signals are
+ * computed in one aggregation pass and scored in JS; a SQL mirror of classify() (same constants)
+ * exists only so `score` is orderable at the DB layer. `total` counts all groups pre-LIMIT.
  */
-export async function getOffenders(db: Db, windowHours: number, limit: number): Promise<Offender[]> {
-	const since = new Date(Date.now() - windowHours * 3_600_000);
+export async function getOffenders(db: Db, opts: OffendersOpts): Promise<OffendersPage> {
+	const since = new Date(Date.now() - opts.windowHours * 3_600_000);
+	const hits = count();
+	const logins = sql<number>`count(*) filter (where ${connections.intent} = 'login')`;
+	const daemonsHit = countDistinct(connections.daemonId);
+	const lastSeen = sql<Date>`max(${connections.receivedAt})`;
 	// A raw-IP hostname means the client connected by IP literal, not a domain — a scanner tell.
 	const rawHostnameHits = sql<number>`count(*) filter (where ${connections.serverAddress} ~ '^[0-9]{1,3}(\\.[0-9]{1,3}){3}$' or ${connections.serverAddress} ~ ':')`;
+	const abnormalProtoHits = sql<number>`count(*) filter (where ${connections.protocolVersion} is null or ${connections.protocolVersion} <= 0)`;
+	const distinctUsernames = sql<number>`count(distinct ${connections.username})`;
+	// SQL mirror of classify() for ORDER BY only; grouped rows always have count(*) >= 1, so the division is safe.
+	const scoreExpr = sql<number>`least(100,
+		(case when (${rawHostnameHits})::float / count(*) > ${RAW_HOSTNAME_RATIO} then ${SCORE_WEIGHTS.rawHostname} else 0 end)
+		+ (case when ${daemonsHit} > 1 then ${SCORE_WEIGHTS.multiDaemon} else 0 end)
+		+ (case when ${abnormalProtoHits} > 0 then ${SCORE_WEIGHTS.abnormalProto} else 0 end)
+		+ (case when ${logins} = 0 then ${SCORE_WEIGHTS.reconOnly} else 0 end)
+		+ (case when ${distinctUsernames} >= ${USERNAME_SPRAY_MIN} then ${SCORE_WEIGHTS.usernameSpray} else 0 end))`;
+
+	const sortExpr = { lastSeen, hits, logins, daemonsHit, score: scoreExpr }[opts.sortBy];
+	const dir = opts.order === "asc" ? asc : desc;
 	const rows = await db
 		.select({
 			srcIp: connections.srcIp,
-			hits: count(),
-			logins: sql<number>`count(*) filter (where ${connections.intent} = 'login')`,
-			daemonsHit: countDistinct(connections.daemonId),
-			lastSeen: sql<Date>`max(${connections.receivedAt})`,
+			hits,
+			logins,
+			daemonsHit,
+			lastSeen,
 			rawHostnameHits,
-			abnormalProtoHits: sql<number>`count(*) filter (where ${connections.protocolVersion} is null or ${connections.protocolVersion} <= 0)`,
-			distinctUsernames: sql<number>`count(distinct ${connections.username})`,
+			abnormalProtoHits,
+			distinctUsernames,
 			// Functionally dependent on the grouped src_ip; max() is just the cheap way to select it.
 			countryCode: sql<string | null>`max(${connections.countryCode})`,
 			asOrg: sql<string | null>`max(${connections.asOrg})`,
+			// Group count pre-LIMIT so the client can render page controls without a second query.
+			total: sql<number>`count(*) over ()`,
 		})
 		.from(connections)
 		.where(gte(connections.receivedAt, since))
 		.groupBy(connections.srcIp)
-		.orderBy(desc(count()))
-		.limit(Math.min(limit, 500));
+		// Tiebreakers keep pages stable when the chosen sort key has duplicates (src_ip is unique per group).
+		.orderBy(dir(sortExpr), desc(lastSeen), asc(connections.srcIp))
+		.limit(Math.min(opts.limit, 500))
+		.offset(opts.offset);
 
-	return rows.map((r) => {
+	const total = Number(rows[0]?.total ?? 0);
+	const mapped = rows.map((r) => {
 		const signals = {
 			hits: Number(r.hits),
 			logins: Number(r.logins),
@@ -204,6 +238,7 @@ export async function getOffenders(db: Db, windowHours: number, limit: number): 
 			asOrg: r.asOrg,
 		};
 	});
+	return { rows: mapped, total };
 }
 
 export interface Stats {
