@@ -15,8 +15,9 @@ const links = [
 <template>
 	<header class="sticky top-0 z-30 border-b border-line bg-page/90 backdrop-blur">
 		<div class="mx-auto flex h-14 max-w-[1400px] items-center gap-6 px-6">
-			<span class="font-mono text-base font-semibold tracking-tight text-ink">
-				<span aria-hidden="true" class="text-accent">▚</span> mcpot
+			<span class="inline-flex items-center gap-2 font-mono text-base font-semibold tracking-tight text-ink">
+				<img src="/favicon-32x32.png" alt="" class="size-5" />
+				mcpot
 			</span>
 			<nav class="flex flex-1 items-center gap-1">
 				<RouterLink

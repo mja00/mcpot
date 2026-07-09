@@ -29,8 +29,9 @@ async function submit(): Promise<void> {
 		<form class="flex w-72 flex-col gap-3 rounded-xl border border-line bg-surface p-6" @submit.prevent="submit">
 			<div>
 				<p class="m-0 mb-1 font-mono text-[11px] tracking-[0.22em] text-ink-muted uppercase">Honeypot network</p>
-				<h1 class="m-0 font-mono text-2xl font-semibold tracking-tight text-ink">
-					<span aria-hidden="true" class="text-accent">▚</span> mcpot
+				<h1 class="m-0 inline-flex items-center gap-2.5 font-mono text-2xl font-semibold tracking-tight text-ink">
+					<img src="/android-chrome-192x192.png" alt="" class="size-8" />
+					mcpot
 				</h1>
 			</div>
 			<input
