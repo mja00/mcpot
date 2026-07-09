@@ -65,6 +65,32 @@ docker compose -f infra/docker-compose.full.yml -f infra/docker-compose.local-bi
 Point your reverse proxy at `127.0.0.1:8081`. Daemons then use the same public URL as the
 dashboard for `MCPOT_SERVER_URL` (e.g. `https://mcpot.example.com`) — no separate API port.
 
+### SSE through reverse proxies (Nginx Proxy Manager, Cloudflare)
+
+The dashboard's live feed is a long-lived `text/event-stream` response on `/v1/events/stream`.
+Every proxy between the browser and the server must pass it through unbuffered:
+
+- **The bundled web nginx** already ships a dedicated unbuffered location for it, and the server
+  also sends `X-Accel-Buffering: no`, which any nginx hop (including NPM) honors per-response.
+- **Nginx Proxy Manager**: usually works as-is because of that header. If the LIVE indicator
+  sticks at SYNC, add this to the proxy host's *Advanced* tab:
+
+  ```nginx
+  location /v1/events/stream {
+      proxy_pass $forward_scheme://$server:$port;
+      proxy_http_version 1.1;
+      proxy_set_header Connection "";
+      proxy_buffering off;
+      proxy_cache off;
+      proxy_read_timeout 1h;
+  }
+  ```
+
+- **Cloudflare (proxied DNS)**: streams SSE without buffering, but drops connections idle for
+  ~100 s — the server's 25 s heartbeat comments keep the stream under that. Don't add a cache
+  rule that caches `/v1/*`. The client auto-reconnects and refetches on any drop, so brief
+  proxy restarts self-heal.
+
 ## Deploying a daemon to a VPS
 
 Mint an enrollment token from the dashboard (Daemons → Enroll new daemon), then on the VPS:
