@@ -331,8 +331,9 @@ export interface AutoReportConfig {
 }
 
 export function shouldAutoReport(signals: OffenderSignals, config: AutoReportConfig): boolean {
-	const classification = classify(signals);
-	return config.enabled && signals.hits >= config.minHits && classification.label === "scanner" && classification.score >= config.minScore;
+	// minScore is the sole score gate (default 60 = the scanner threshold) so lowering it actually broadens reporting.
+	const { score } = classify(signals);
+	return config.enabled && signals.hits >= config.minHits && score >= config.minScore;
 }
 
 /** Bounded background queue keeps provider latency outside the ingest request path. */

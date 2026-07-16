@@ -1,6 +1,7 @@
 function envInt(name: string, fallback: number): number {
 	const raw = process.env[name];
-	if (raw === undefined) return fallback;
+	// Treat empty/whitespace as unset so a bare `NAME=` keeps the fallback instead of parsing to 0.
+	if (raw === undefined || raw.trim() === "") return fallback;
 	const parsed = Number(raw);
 	if (!Number.isInteger(parsed)) throw new Error(`${name} must be an integer`);
 	return parsed;
@@ -56,6 +57,8 @@ export function loadServerConfig(): ServerConfig {
 	if (!adminPassword) throw new Error("ADMIN_PASSWORD is required");
 	const sessionSecret = process.env.SESSION_SECRET;
 	if (!sessionSecret) throw new Error("SESSION_SECRET is required");
+	// Auto report/check can only reach the provider with a key, so gate them on it to avoid pointless background work.
+	const hasKey = Boolean(process.env.ABUSEIPDB_KEY);
 	return {
 		port: envInt("PORT", 8080),
 		host: process.env.HOST ?? "0.0.0.0",
@@ -70,8 +73,8 @@ export function loadServerConfig(): ServerConfig {
 		abuseipdbDailyLimit: boundedEnvInt("ABUSEIPDB_DAILY_LIMIT", 5000, 1, 5000),
 		abuseipdbCheckDailyLimit: boundedEnvInt("ABUSEIPDB_CHECK_DAILY_LIMIT", 5000, 1, 5000),
 		abuseipdbCheckCacheHours: boundedEnvInt("ABUSEIPDB_CHECK_CACHE_HOURS", 24, 1, 720),
-		autoReportEnabled: envBool("ABUSEIPDB_AUTO_REPORT", true),
-		autoCheckEnabled: envBool("ABUSEIPDB_AUTO_CHECK", true),
+		autoReportEnabled: hasKey && envBool("ABUSEIPDB_AUTO_REPORT", true),
+		autoCheckEnabled: hasKey && envBool("ABUSEIPDB_AUTO_CHECK", true),
 		autoReportMinScore: boundedEnvInt("ABUSEIPDB_AUTO_REPORT_MIN_SCORE", 60, 0, 100),
 		autoReportMinHits: boundedEnvInt("ABUSEIPDB_AUTO_REPORT_MIN_HITS", 3, 1, 100000),
 		autoReportWindowHours: boundedEnvInt("ABUSEIPDB_AUTO_REPORT_WINDOW_HOURS", 24, 1, 720),

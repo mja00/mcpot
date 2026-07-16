@@ -440,7 +440,7 @@ export async function getOffenders(db: Db, opts: OffendersOpts): Promise<Offende
 				.from(abuseipdbChecks)
 				.where(inArray(abuseipdbChecks.srcIp, ips))
 		: [];
-	const abuseChecksByIp = new Map(abuseChecks.map((check) => [check.srcIp, check]));
+	const abuseChecksByIp = new Map(abuseChecks.map(({ srcIp, ...rest }) => [srcIp, rest]));
 	const mapped = rows.map((r) => {
 		const signals = {
 			hits: Number(r.hits),
@@ -451,6 +451,7 @@ export async function getOffenders(db: Db, opts: OffendersOpts): Promise<Offende
 			distinctUsernames: Number(r.distinctUsernames),
 		};
 		const { score, label } = classify(signals);
+		const check = r.srcIp ? abuseChecksByIp.get(r.srcIp) : undefined;
 		return {
 			srcIp: r.srcIp,
 			...signals,
@@ -459,28 +460,7 @@ export async function getOffenders(db: Db, opts: OffendersOpts): Promise<Offende
 			classification: label,
 			countryCode: r.countryCode,
 			asOrg: r.asOrg,
-			abuseCheck: r.srcIp
-				? (() => {
-						const check = abuseChecksByIp.get(r.srcIp!);
-						return check
-							? {
-									status: check.status as "pending" | "succeeded" | "failed",
-									checkedAt: check.checkedAt,
-									isPublic: check.isPublic,
-									isWhitelisted: check.isWhitelisted,
-									abuseConfidenceScore: check.abuseConfidenceScore,
-									countryCode: check.countryCode,
-									usageType: check.usageType,
-									isp: check.isp,
-									domain: check.domain,
-									isTor: check.isTor,
-									totalReports: check.totalReports,
-									numDistinctUsers: check.numDistinctUsers,
-									lastReportedAt: check.lastReportedAt,
-								}
-							: null;
-					})()
-				: null,
+			abuseCheck: check ? { ...check, status: check.status as "pending" | "succeeded" | "failed" } : null,
 		};
 	});
 	return { rows: mapped, total };
