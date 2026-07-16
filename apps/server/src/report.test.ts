@@ -3,7 +3,7 @@ import { isPublicIp, shouldAutoReport } from "./report.ts";
 
 describe("automatic report criteria", () => {
 	it("requires an enabled scanner with enough observed hits", () => {
-		const config = { enabled: true, minScore: 60, minHits: 3, windowHours: 24 };
+		const config = { enabled: true, minScore: 60, minHits: 3, windowHours: 24, checkEnabled: false, checkCacheHours: 24 };
 		const scanner = { hits: 3, logins: 0, daemonsHit: 1, rawHostnameHits: 3, abnormalProtoHits: 1, distinctUsernames: 0 };
 		expect(shouldAutoReport(scanner, config)).toBe(true);
 		expect(shouldAutoReport({ ...scanner, hits: 2 }, config)).toBe(false);

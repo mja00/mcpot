@@ -17,7 +17,10 @@ export interface BuildAppOptions {
 	abuseipdbKey?: string | null;
 	webhookUrl?: string | null;
 	abuseipdbDailyLimit?: number;
+	abuseipdbCheckDailyLimit?: number;
+	abuseipdbCheckCacheHours?: number;
 	autoReportEnabled?: boolean;
+	autoCheckEnabled?: boolean;
 	autoReportMinScore?: number;
 	autoReportMinHits?: number;
 	autoReportWindowHours?: number;
@@ -38,6 +41,8 @@ export function buildApp(opts: BuildAppOptions): FastifyInstance {
 			abuseipdbKey: opts.abuseipdbKey ?? null,
 			webhookUrl: opts.webhookUrl ?? null,
 			abuseipdbDailyLimit: opts.abuseipdbDailyLimit ?? 5000,
+			abuseipdbCheckDailyLimit: opts.abuseipdbCheckDailyLimit ?? 5000,
+			abuseipdbCheckCacheHours: opts.abuseipdbCheckCacheHours ?? 24,
 		},
 		opts.reportFetch,
 	);
@@ -46,6 +51,8 @@ export function buildApp(opts: BuildAppOptions): FastifyInstance {
 		minScore: opts.autoReportMinScore ?? 60,
 		minHits: opts.autoReportMinHits ?? 3,
 		windowHours: opts.autoReportWindowHours ?? 24,
+		checkEnabled: opts.autoCheckEnabled ?? Boolean(opts.abuseipdbKey),
+		checkCacheHours: opts.abuseipdbCheckCacheHours ?? 24,
 	});
 	registerAuthRoutes(app, opts.adminPassword, opts.sessionSecret);
 	registerDaemonRoutes(app, opts.db, opts.geo ?? noopGeo, bus, autoReporter);

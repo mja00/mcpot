@@ -38,6 +38,8 @@ add `--build` to build from source instead.
 - The server migrates the database on boot and runs the daily retention purge (`RETENTION_DAYS`, default 90).
 - Optional reporting sinks: set `ABUSEIPDB_KEY` and/or `WEBHOOK_URL`. With an AbuseIPDB key, automatic reports are enabled by default for public IPs that produce at least 3 hits in 24 hours and reach the existing `scanner` classification (score 60+). Set `ABUSEIPDB_AUTO_REPORT=false` to disable them.
 - This deployment is configured for a 5,000-request `/report` quota per UTC day (`ABUSEIPDB_DAILY_LIMIT=5000`) and shares that cap across manual and automatic reports. Reservations are recorded before calls so concurrent replicas cannot oversubscribe it; failed calls remain counted for safety.
+- Automatic `/check` lookups are enabled by default when `ABUSEIPDB_KEY` is set. Each newly observed public IP is checked at most once per `ABUSEIPDB_CHECK_CACHE_HOURS` (24 hours by default), and cached results are included with offender data. The check budget is tracked separately with `ABUSEIPDB_CHECK_DAILY_LIMIT=5000`.
+- Set `ABUSEIPDB_AUTO_CHECK=false` to disable lookups without disabling reports. The lookup cache stores provider status and summary fields such as confidence score, total reports, country, Tor status, and last report time; local scanner criteria remain the only automatic-report trigger.
 - Automatic reports are limited to one attempt per source IP per UTC day. The local criteria are based on observed honeypot connection telemetry, not AbuseIPDB's confidence score.
 
 ### GeoIP enrichment (optional)

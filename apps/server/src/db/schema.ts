@@ -89,4 +89,30 @@ export const abuseReports = pgTable(
 export const abuseipdbDailyUsage = pgTable("abuseipdb_daily_usage", {
 	reportDay: date("report_day", { mode: "string" }).primaryKey(),
 	reportCount: integer("report_count").notNull().default(0),
+	checkCount: integer("check_count").notNull().default(0),
 });
+
+/** Cached AbuseIPDB check data; pending rows also prevent duplicate concurrent checks. */
+export const abuseipdbChecks = pgTable(
+	"abuseipdb_checks",
+	{
+		srcIp: inet("src_ip").primaryKey(),
+		status: text("status").notNull().default("pending"),
+		attemptedAt: timestamp("attempted_at", { withTimezone: true }).notNull().defaultNow(),
+		checkedAt: timestamp("checked_at", { withTimezone: true }),
+		httpStatus: integer("http_status"),
+		error: text("error"),
+		isPublic: boolean("is_public"),
+		isWhitelisted: boolean("is_whitelisted"),
+		abuseConfidenceScore: integer("abuse_confidence_score"),
+		countryCode: text("country_code"),
+		usageType: text("usage_type"),
+		isp: text("isp"),
+		domain: text("domain"),
+		isTor: boolean("is_tor"),
+		totalReports: integer("total_reports"),
+		numDistinctUsers: integer("num_distinct_users"),
+		lastReportedAt: timestamp("last_reported_at", { withTimezone: true }),
+	},
+	(t) => [index("abuseipdb_checks_checked_at").on(t.checkedAt)],
+);

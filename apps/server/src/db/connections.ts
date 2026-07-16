@@ -1,4 +1,4 @@
-import { and, asc, count, countDistinct, desc, eq, gte, isNotNull, lt, ne, sql } from "drizzle-orm";
+import { and, asc, count, countDistinct, desc, eq, gte, inArray, isNotNull, lt, ne, sql } from "drizzle-orm";
 import type {
 	ConnectionEvent,
 	OffenderSortBy,
@@ -9,7 +9,7 @@ import type {
 	TrendsResponse,
 } from "@mcpot/shared";
 import type { Db } from "./client.ts";
-import { connections, daemons } from "./schema.ts";
+import { abuseipdbChecks, connections, daemons } from "./schema.ts";
 import { sanitizeString, toInetOrNull } from "../sanitize.ts";
 import { type Classification, type OffenderSignals, classify, RAW_HOSTNAME_RATIO, SCORE_WEIGHTS, USERNAME_SPRAY_MIN } from "../classify.ts";
 import type { GeoService } from "../geo.ts";
@@ -316,6 +316,21 @@ export interface Offender {
 	classification: Classification;
 	countryCode: string | null;
 	asOrg: string | null;
+	abuseCheck: {
+		status: "pending" | "succeeded" | "failed";
+		checkedAt: Date | null;
+		isPublic: boolean | null;
+		isWhitelisted: boolean | null;
+		abuseConfidenceScore: number | null;
+		countryCode: string | null;
+		usageType: string | null;
+		isp: string | null;
+		domain: string | null;
+		isTor: boolean | null;
+		totalReports: number | null;
+		numDistinctUsers: number | null;
+		lastReportedAt: Date | null;
+	} | null;
 }
 
 export async function getOffenderSignals(db: Db, srcIp: string, windowHours: number): Promise<OffenderSignals> {
@@ -403,6 +418,29 @@ export async function getOffenders(db: Db, opts: OffendersOpts): Promise<Offende
 		.offset(opts.offset);
 
 	const total = Number(rows[0]?.total ?? 0);
+	const ips = rows.flatMap((row) => (row.srcIp ? [row.srcIp] : []));
+	const abuseChecks = ips.length
+		? await db
+				.select({
+					srcIp: abuseipdbChecks.srcIp,
+					status: abuseipdbChecks.status,
+					checkedAt: abuseipdbChecks.checkedAt,
+					isPublic: abuseipdbChecks.isPublic,
+					isWhitelisted: abuseipdbChecks.isWhitelisted,
+					abuseConfidenceScore: abuseipdbChecks.abuseConfidenceScore,
+					countryCode: abuseipdbChecks.countryCode,
+					usageType: abuseipdbChecks.usageType,
+					isp: abuseipdbChecks.isp,
+					domain: abuseipdbChecks.domain,
+					isTor: abuseipdbChecks.isTor,
+					totalReports: abuseipdbChecks.totalReports,
+					numDistinctUsers: abuseipdbChecks.numDistinctUsers,
+					lastReportedAt: abuseipdbChecks.lastReportedAt,
+				})
+				.from(abuseipdbChecks)
+				.where(inArray(abuseipdbChecks.srcIp, ips))
+		: [];
+	const abuseChecksByIp = new Map(abuseChecks.map((check) => [check.srcIp, check]));
 	const mapped = rows.map((r) => {
 		const signals = {
 			hits: Number(r.hits),
@@ -421,6 +459,28 @@ export async function getOffenders(db: Db, opts: OffendersOpts): Promise<Offende
 			classification: label,
 			countryCode: r.countryCode,
 			asOrg: r.asOrg,
+			abuseCheck: r.srcIp
+				? (() => {
+						const check = abuseChecksByIp.get(r.srcIp!);
+						return check
+							? {
+									status: check.status as "pending" | "succeeded" | "failed",
+									checkedAt: check.checkedAt,
+									isPublic: check.isPublic,
+									isWhitelisted: check.isWhitelisted,
+									abuseConfidenceScore: check.abuseConfidenceScore,
+									countryCode: check.countryCode,
+									usageType: check.usageType,
+									isp: check.isp,
+									domain: check.domain,
+									isTor: check.isTor,
+									totalReports: check.totalReports,
+									numDistinctUsers: check.numDistinctUsers,
+									lastReportedAt: check.lastReportedAt,
+								}
+							: null;
+					})()
+				: null,
 		};
 	});
 	return { rows: mapped, total };

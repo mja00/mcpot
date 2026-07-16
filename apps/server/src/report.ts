@@ -1,14 +1,16 @@
 import { isIP } from "node:net";
-import { and, eq, lt, sql } from "drizzle-orm";
+import { and, eq, isNull, lt, or, sql } from "drizzle-orm";
 import type { Db } from "./db/client.ts";
 import { getOffenderSignals } from "./db/connections.ts";
-import { abuseipdbDailyUsage, abuseReports } from "./db/schema.ts";
+import { abuseipdbChecks, abuseipdbDailyUsage, abuseReports } from "./db/schema.ts";
 import { classify, type OffenderSignals } from "./classify.ts";
 
 export interface ReportConfig {
 	abuseipdbKey: string | null;
 	webhookUrl: string | null;
 	abuseipdbDailyLimit: number;
+	abuseipdbCheckDailyLimit: number;
+	abuseipdbCheckCacheHours: number;
 }
 
 export interface ReportResult {
@@ -18,6 +20,23 @@ export interface ReportResult {
 
 export type ReportTrigger = "manual" | "automatic";
 export type ReportFetch = typeof fetch;
+
+export interface AbuseCheckResult {
+	srcIp: string;
+	status: "succeeded";
+	checkedAt: Date;
+	isPublic: boolean | null;
+	isWhitelisted: boolean | null;
+	abuseConfidenceScore: number | null;
+	countryCode: string | null;
+	usageType: string | null;
+	isp: string | null;
+	domain: string | null;
+	isTor: boolean | null;
+	totalReports: number | null;
+	numDistinctUsers: number | null;
+	lastReportedAt: Date | null;
+}
 
 export class InvalidReportIpError extends Error {
 	constructor() {
@@ -29,11 +48,13 @@ export class InvalidReportIpError extends Error {
 const COMMENT = "Observed unsolicited TCP connection to a Minecraft honeypot on port 25565; automated scanner behavior matched local connection telemetry.";
 // AbuseIPDB categories: 14 = Port Scan, 15 = Hacking.
 const CATEGORIES = "14,15";
-const AUTO_QUEUE_LIMIT = 1000;
+const AUTO_QUEUE_LIMIT = 5000;
 const AUTO_CONCURRENCY = 2;
+const CHECK_MAX_AGE_DAYS = 90;
+const CHECK_RETRY_MINUTES = 10;
 
-function utcDay(): string {
-	return new Date().toISOString().slice(0, 10);
+function utcDay(now = new Date()): string {
+	return now.toISOString().slice(0, 10);
 }
 
 function safeError(error: unknown): string {
@@ -53,7 +74,7 @@ async function reserveAbuseReport(db: Db, srcIp: string, trigger: ReportTrigger,
 				.returning({ id: abuseReports.id });
 			if (!report) return null;
 
-			await tx.insert(abuseipdbDailyUsage).values({ reportDay, reportCount: 0 }).onConflictDoNothing({ target: abuseipdbDailyUsage.reportDay });
+			await tx.insert(abuseipdbDailyUsage).values({ reportDay, reportCount: 0, checkCount: 0 }).onConflictDoNothing({ target: abuseipdbDailyUsage.reportDay });
 			const [usage] = await tx
 				.update(abuseipdbDailyUsage)
 				.set({ reportCount: sql`${abuseipdbDailyUsage.reportCount} + 1` })
@@ -68,11 +89,115 @@ async function reserveAbuseReport(db: Db, srcIp: string, trigger: ReportTrigger,
 	}
 }
 
+async function reserveAbuseCheck(db: Db, srcIp: string, cacheHours: number, dailyLimit: number): Promise<boolean> {
+	class QuotaExhausted extends Error {}
+
+	const now = new Date();
+	const freshBefore = new Date(now.getTime() - cacheHours * 3_600_000);
+	const retryBefore = new Date(now.getTime() - CHECK_RETRY_MINUTES * 60_000);
+	try {
+		return await db.transaction(async (tx) => {
+			const [created] = await tx
+				.insert(abuseipdbChecks)
+				.values({ srcIp, status: "pending", attemptedAt: now })
+				.onConflictDoNothing({ target: abuseipdbChecks.srcIp })
+				.returning({ srcIp: abuseipdbChecks.srcIp });
+			const [claimed] = created
+				? [created]
+				: await tx
+						.update(abuseipdbChecks)
+						.set({ status: "pending", attemptedAt: now, httpStatus: null, error: null })
+						.where(
+							and(
+								eq(abuseipdbChecks.srcIp, srcIp),
+								or(isNull(abuseipdbChecks.checkedAt), lt(abuseipdbChecks.checkedAt, freshBefore)),
+								or(isNull(abuseipdbChecks.attemptedAt), lt(abuseipdbChecks.attemptedAt, retryBefore)),
+							),
+						)
+						.returning({ srcIp: abuseipdbChecks.srcIp });
+			if (!claimed) return false;
+
+			const reportDay = utcDay(now);
+			await tx.insert(abuseipdbDailyUsage).values({ reportDay, reportCount: 0, checkCount: 0 }).onConflictDoNothing({ target: abuseipdbDailyUsage.reportDay });
+			const [usage] = await tx
+				.update(abuseipdbDailyUsage)
+				.set({ checkCount: sql`${abuseipdbDailyUsage.checkCount} + 1` })
+				.where(and(eq(abuseipdbDailyUsage.reportDay, reportDay), lt(abuseipdbDailyUsage.checkCount, dailyLimit)))
+				.returning({ checkCount: abuseipdbDailyUsage.checkCount });
+			if (!usage) throw new QuotaExhausted();
+			return true;
+		});
+	} catch (error) {
+		if (error instanceof QuotaExhausted) return false;
+		throw error;
+	}
+}
+
 async function completeAbuseReport(db: Db, id: string, status: "succeeded" | "failed", httpStatus: number | null, error: string | null): Promise<void> {
 	await db
 		.update(abuseReports)
 		.set({ status, completedAt: new Date(), httpStatus, error })
 		.where(eq(abuseReports.id, id));
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null;
+}
+
+function optionalNumber(value: unknown): number | null {
+	return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function optionalBoolean(value: unknown): boolean | null {
+	return typeof value === "boolean" ? value : null;
+}
+
+function optionalString(value: unknown): string | null {
+	return typeof value === "string" ? value : null;
+}
+
+function optionalDate(value: unknown): Date | null {
+	if (typeof value !== "string") return null;
+	const date = new Date(value);
+	return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function parseAbuseCheck(body: unknown): Omit<AbuseCheckResult, "checkedAt" | "status" | "srcIp"> | null {
+	if (!isRecord(body) || !isRecord(body.data)) return null;
+	const data = body.data;
+	return {
+		isPublic: optionalBoolean(data.isPublic),
+		isWhitelisted: optionalBoolean(data.isWhitelisted),
+		abuseConfidenceScore: optionalNumber(data.abuseConfidenceScore),
+		countryCode: optionalString(data.countryCode),
+		usageType: optionalString(data.usageType),
+		isp: optionalString(data.isp),
+		domain: optionalString(data.domain),
+		isTor: optionalBoolean(data.isTor),
+		totalReports: optionalNumber(data.totalReports),
+		numDistinctUsers: optionalNumber(data.numDistinctUsers),
+		lastReportedAt: optionalDate(data.lastReportedAt),
+	};
+}
+
+async function completeAbuseCheck(
+	db: Db,
+	srcIp: string,
+	status: "succeeded" | "failed",
+	httpStatus: number | null,
+	error: string | null,
+	data?: Omit<AbuseCheckResult, "checkedAt" | "status" | "srcIp">,
+): Promise<void> {
+	await db
+		.update(abuseipdbChecks)
+		.set({
+			status,
+			checkedAt: status === "succeeded" ? new Date() : undefined,
+			httpStatus,
+			error,
+			...(data ?? {}),
+		})
+		.where(eq(abuseipdbChecks.srcIp, srcIp));
 }
 
 /** Sends one manual or automatic report while reserving quota before making the provider call. */
@@ -82,6 +207,37 @@ export class ReportingService {
 		private readonly config: ReportConfig,
 		private readonly fetchFn: ReportFetch = fetch,
 	) {}
+
+	async checkIp(srcIp: string): Promise<AbuseCheckResult | null> {
+		if (!this.config.abuseipdbKey || !isPublicIp(srcIp)) return null;
+		if (!(await reserveAbuseCheck(this.db, srcIp, this.config.abuseipdbCheckCacheHours, this.config.abuseipdbCheckDailyLimit))) return null;
+
+		try {
+			const query = new URLSearchParams({ ipAddress: srcIp, maxAgeInDays: String(CHECK_MAX_AGE_DAYS) });
+			const response = await this.fetchFn(`https://api.abuseipdb.com/api/v2/check?${query}`, {
+				method: "GET",
+				headers: { Key: this.config.abuseipdbKey, Accept: "application/json" },
+			});
+			if (!response.ok) {
+				await completeAbuseCheck(this.db, srcIp, "failed", response.status, `provider returned HTTP ${response.status}`);
+				return null;
+			}
+			const data = parseAbuseCheck(await response.json());
+			if (!data) {
+				await completeAbuseCheck(this.db, srcIp, "failed", response.status, "invalid provider response");
+				return null;
+			}
+			await completeAbuseCheck(this.db, srcIp, "succeeded", response.status, null, data);
+			return { srcIp, status: "succeeded", checkedAt: new Date(), ...data };
+		} catch (error) {
+			try {
+				await completeAbuseCheck(this.db, srcIp, "failed", null, safeError(error));
+			} catch {
+				// The quota reservation remains evidence of a conservatively consumed check slot.
+			}
+			return null;
+		}
+	}
 
 	async reportIp(srcIp: string, trigger: ReportTrigger = "manual"): Promise<ReportResult> {
 		if (isIP(srcIp) === 0) throw new InvalidReportIpError();
@@ -170,6 +326,8 @@ export interface AutoReportConfig {
 	minScore: number;
 	minHits: number;
 	windowHours: number;
+	checkEnabled: boolean;
+	checkCacheHours: number;
 }
 
 export function shouldAutoReport(signals: OffenderSignals, config: AutoReportConfig): boolean {
@@ -193,7 +351,7 @@ export class AutomaticReporter {
 	) {}
 
 	enqueueMany(ips: Iterable<string>): void {
-		if (!this.config.enabled || this.stopping) return;
+		if ((!this.config.enabled && !this.config.checkEnabled) || this.stopping) return;
 		for (const ip of new Set(ips)) {
 			if (this.pending.has(ip) || !isPublicIp(ip) || this.queue.length >= AUTO_QUEUE_LIMIT) continue;
 			this.pending.add(ip);
@@ -227,6 +385,8 @@ export class AutomaticReporter {
 	}
 
 	private async process(srcIp: string): Promise<void> {
+		if (this.config.checkEnabled) await this.reporting.checkIp(srcIp);
+		if (!this.config.enabled) return;
 		const signals = await getOffenderSignals(this.db, srcIp, this.config.windowHours);
 		if (!shouldAutoReport(signals, this.config)) return;
 		await this.reporting.reportIp(srcIp, "automatic");

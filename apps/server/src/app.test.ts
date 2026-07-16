@@ -6,7 +6,7 @@ import { buildApp } from "./app.ts";
 import { createClient, createDb, type Db } from "./db/client.ts";
 import { runMigrations } from "./db/migrate.ts";
 import { purgeOldConnections } from "./retention.ts";
-import { abuseipdbDailyUsage, abuseReports } from "./db/schema.ts";
+import { abuseipdbChecks, abuseipdbDailyUsage, abuseReports } from "./db/schema.ts";
 import { ReportingService } from "./report.ts";
 
 // Integration tests need a real Postgres. Set TEST_DATABASE_URL to run them; otherwise they skip so
@@ -55,7 +55,7 @@ suite("central server (integration)", () => {
 	});
 
 	beforeEach(async () => {
-		await client`truncate table abuse_reports, abuseipdb_daily_usage, connections, daemons, enrollment_tokens cascade`;
+		await client`truncate table abuseipdb_checks, abuse_reports, abuseipdb_daily_usage, connections, daemons, enrollment_tokens cascade`;
 	});
 
 	async function mintToken(): Promise<string> {
@@ -135,7 +135,8 @@ suite("central server (integration)", () => {
 	});
 
 	it("automatically reports a repeated public scanner without delaying ingest", async () => {
-		let providerCalls = 0;
+		let reportCalls = 0;
+		let checkCalls = 0;
 		let resolveReport!: () => void;
 		const reportDone = new Promise<void>((resolve, reject) => {
 			resolveReport = resolve;
@@ -148,8 +149,15 @@ suite("central server (integration)", () => {
 			sessionSecret: SESSION_SECRET,
 			abuseipdbKey: "test-key",
 			autoReportEnabled: true,
-			reportFetch: async () => {
-				providerCalls += 1;
+			reportFetch: async (requestUrl) => {
+				if (typeof requestUrl === "string" && requestUrl.includes("/check?")) {
+					checkCalls += 1;
+					return new Response(JSON.stringify({ data: { ipAddress: "8.8.8.8", abuseConfidenceScore: 2, totalReports: 1 } }), {
+						status: 200,
+						headers: { "content-type": "application/json" },
+					});
+				}
+				reportCalls += 1;
 				resolveReport();
 				return new Response("ok", { status: 200 });
 			},
@@ -171,14 +179,15 @@ suite("central server (integration)", () => {
 		} finally {
 			await reportingApp.close();
 		}
-		expect(providerCalls).toBe(1);
+		expect(reportCalls).toBe(1);
+		expect(checkCalls).toBe(1);
 	});
 
 	it("counts provider failures and suppresses duplicate IP attempts", async () => {
 		let calls = 0;
 		const service = new ReportingService(
 			db,
-			{ abuseipdbKey: "test-key", webhookUrl: null, abuseipdbDailyLimit: 10 },
+			{ abuseipdbKey: "test-key", webhookUrl: null, abuseipdbDailyLimit: 10, abuseipdbCheckDailyLimit: 10, abuseipdbCheckCacheHours: 24 },
 			async () => {
 				calls += 1;
 				return new Response("unavailable", { status: 503 });
@@ -199,7 +208,7 @@ suite("central server (integration)", () => {
 		let calls = 0;
 		const service = new ReportingService(
 			db,
-			{ abuseipdbKey: "test-key", webhookUrl: null, abuseipdbDailyLimit: 2 },
+			{ abuseipdbKey: "test-key", webhookUrl: null, abuseipdbDailyLimit: 2, abuseipdbCheckDailyLimit: 2, abuseipdbCheckCacheHours: 24 },
 			async () => {
 				calls += 1;
 				return new Response("ok", { status: 200 });
@@ -210,6 +219,32 @@ suite("central server (integration)", () => {
 		expect(calls).toBe(2);
 		const [usage] = await db.select().from(abuseipdbDailyUsage);
 		expect(usage?.reportCount).toBe(2);
+	});
+
+	it("caches successful AbuseIPDB checks and tracks their separate quota", async () => {
+		let calls = 0;
+		const service = new ReportingService(
+			db,
+			{ abuseipdbKey: "test-key", webhookUrl: null, abuseipdbDailyLimit: 10, abuseipdbCheckDailyLimit: 1, abuseipdbCheckCacheHours: 24 },
+			async (url) => {
+				calls += 1;
+				expect(String(url)).toContain("/api/v2/check?");
+				return new Response(JSON.stringify({ data: { ipAddress: "8.8.8.8", abuseConfidenceScore: 42, totalReports: 7, isTor: false } }), {
+					status: 200,
+					headers: { "content-type": "application/json" },
+				});
+			},
+		);
+
+		const first = await service.checkIp("8.8.8.8");
+		const second = await service.checkIp("8.8.8.8");
+		expect(first?.abuseConfidenceScore).toBe(42);
+		expect(second).toBeNull();
+		expect(calls).toBe(1);
+		const [usage] = await db.select().from(abuseipdbDailyUsage);
+		expect(usage?.checkCount).toBe(1);
+		const [cache] = await db.select().from(abuseipdbChecks);
+		expect(cache?.status).toBe("succeeded");
 	});
 
 	it("rejects ingest without a valid key", async () => {

@@ -38,7 +38,10 @@ export interface ServerConfig {
 	abuseipdbKey: string | null;
 	webhookUrl: string | null;
 	abuseipdbDailyLimit: number;
+	abuseipdbCheckDailyLimit: number;
+	abuseipdbCheckCacheHours: number;
 	autoReportEnabled: boolean;
+	autoCheckEnabled: boolean;
 	autoReportMinScore: number;
 	autoReportMinHits: number;
 	autoReportWindowHours: number;
@@ -65,7 +68,10 @@ export function loadServerConfig(): ServerConfig {
 		abuseipdbKey: process.env.ABUSEIPDB_KEY ?? null,
 		webhookUrl: process.env.WEBHOOK_URL ?? null,
 		abuseipdbDailyLimit: boundedEnvInt("ABUSEIPDB_DAILY_LIMIT", 5000, 1, 5000),
+		abuseipdbCheckDailyLimit: boundedEnvInt("ABUSEIPDB_CHECK_DAILY_LIMIT", 5000, 1, 5000),
+		abuseipdbCheckCacheHours: boundedEnvInt("ABUSEIPDB_CHECK_CACHE_HOURS", 24, 1, 720),
 		autoReportEnabled: envBool("ABUSEIPDB_AUTO_REPORT", true),
+		autoCheckEnabled: envBool("ABUSEIPDB_AUTO_CHECK", true),
 		autoReportMinScore: boundedEnvInt("ABUSEIPDB_AUTO_REPORT_MIN_SCORE", 60, 0, 100),
 		autoReportMinHits: boundedEnvInt("ABUSEIPDB_AUTO_REPORT_MIN_HITS", 3, 1, 100000),
 		autoReportWindowHours: boundedEnvInt("ABUSEIPDB_AUTO_REPORT_WINDOW_HOURS", 24, 1, 720),
