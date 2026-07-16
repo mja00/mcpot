@@ -36,7 +36,9 @@ add `--build` to build from source instead.
 - Dashboard → `http://<host>:8081` (log in with `ADMIN_PASSWORD`)
 - API → `http://<host>:8080`
 - The server migrates the database on boot and runs the daily retention purge (`RETENTION_DAYS`, default 90).
-- Optional reporting sinks: set `ABUSEIPDB_KEY` and/or `WEBHOOK_URL`. Reporting is **manual** (a button per offender) — never automatic.
+- Optional reporting sinks: set `ABUSEIPDB_KEY` and/or `WEBHOOK_URL`. With an AbuseIPDB key, automatic reports are enabled by default for public IPs that produce at least 3 hits in 24 hours and reach the existing `scanner` classification (score 60+). Set `ABUSEIPDB_AUTO_REPORT=false` to disable them.
+- This deployment is configured for a 5,000-request `/report` quota per UTC day (`ABUSEIPDB_DAILY_LIMIT=5000`) and shares that cap across manual and automatic reports. Reservations are recorded before calls so concurrent replicas cannot oversubscribe it; failed calls remain counted for safety.
+- Automatic reports are limited to one attempt per source IP per UTC day. The local criteria are based on observed honeypot connection telemetry, not AbuseIPDB's confidence score.
 
 ### GeoIP enrichment (optional)
 
@@ -125,5 +127,5 @@ dropping expired partitions. The schema was designed for this (time-ordered, ind
 
 - **Provider AUP:** many hosts restrict honeypots or high volumes of malicious inbound traffic — check each provider's acceptable-use policy before mass-deploying, and expect abuse-desk mail.
 - **PII:** source IPs are personal data (GDPR/CCPA). `RETENTION_DAYS` bounds how long they're kept; set it to your policy.
-- **Reporting:** observed IPs can be shared NAT/proxy egress, and ingest is only as trustworthy as the daemon keys — that's why reporting is human-in-the-loop, not automatic.
+- **Reporting:** automatic reports are restricted to public IPs with repeated scanner-like telemetry, while the manual endpoint remains available. Observed IPs can still be shared NAT/proxy egress, and ingest is only as trustworthy as daemon keys; review provider policy before enabling production reporting.
 - **Secrets:** never bake `ADMIN_TOKEN`/`ADMIN_PASSWORD`/`SESSION_SECRET`/reporting keys into images; pass them as environment/secrets at run time.

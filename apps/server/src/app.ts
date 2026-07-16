@@ -7,6 +7,7 @@ import { registerAuthRoutes } from "./routes/auth-routes.ts";
 import { registerStreamRoutes } from "./routes/stream-routes.ts";
 import { type GeoService, noopGeo } from "./geo.ts";
 import { createEventBus } from "./events/bus.ts";
+import { AutomaticReporter, ReportingService } from "./report.ts";
 
 export interface BuildAppOptions {
 	db: Db;
@@ -15,6 +16,12 @@ export interface BuildAppOptions {
 	sessionSecret: string;
 	abuseipdbKey?: string | null;
 	webhookUrl?: string | null;
+	abuseipdbDailyLimit?: number;
+	autoReportEnabled?: boolean;
+	autoReportMinScore?: number;
+	autoReportMinHits?: number;
+	autoReportWindowHours?: number;
+	reportFetch?: typeof fetch;
 	geo?: GeoService;
 }
 
@@ -25,12 +32,27 @@ export function buildApp(opts: BuildAppOptions): FastifyInstance {
 	app.get("/health", async () => ({ status: "ok" }));
 
 	const bus = createEventBus();
-	const reportConfig = { abuseipdbKey: opts.abuseipdbKey ?? null, webhookUrl: opts.webhookUrl ?? null };
+	const reporting = new ReportingService(
+		opts.db,
+		{
+			abuseipdbKey: opts.abuseipdbKey ?? null,
+			webhookUrl: opts.webhookUrl ?? null,
+			abuseipdbDailyLimit: opts.abuseipdbDailyLimit ?? 5000,
+		},
+		opts.reportFetch,
+	);
+	const autoReporter = new AutomaticReporter(opts.db, reporting, {
+		enabled: opts.autoReportEnabled ?? Boolean(opts.abuseipdbKey),
+		minScore: opts.autoReportMinScore ?? 60,
+		minHits: opts.autoReportMinHits ?? 3,
+		windowHours: opts.autoReportWindowHours ?? 24,
+	});
 	registerAuthRoutes(app, opts.adminPassword, opts.sessionSecret);
-	registerDaemonRoutes(app, opts.db, opts.geo ?? noopGeo, bus);
-	registerAdminRoutes(app, opts.db, opts.adminToken, opts.sessionSecret, reportConfig);
+	registerDaemonRoutes(app, opts.db, opts.geo ?? noopGeo, bus, autoReporter);
+	registerAdminRoutes(app, opts.db, opts.adminToken, opts.sessionSecret, reporting);
 	registerReadRoutes(app, opts.db, opts.adminToken, opts.sessionSecret);
 	registerStreamRoutes(app, bus, opts.adminToken, opts.sessionSecret);
+	app.addHook("onClose", async () => autoReporter.stop());
 
 	return app;
 }

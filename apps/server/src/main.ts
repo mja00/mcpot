@@ -15,6 +15,11 @@ const app = buildApp({
 	sessionSecret: config.sessionSecret,
 	abuseipdbKey: config.abuseipdbKey,
 	webhookUrl: config.webhookUrl,
+	abuseipdbDailyLimit: config.abuseipdbDailyLimit,
+	autoReportEnabled: config.autoReportEnabled,
+	autoReportMinScore: config.autoReportMinScore,
+	autoReportMinHits: config.autoReportMinHits,
+	autoReportWindowHours: config.autoReportWindowHours,
 	geo,
 });
 

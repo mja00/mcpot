@@ -4,7 +4,7 @@ import type { Db } from "../db/client.ts";
 import { revokeDaemon } from "../db/daemons.ts";
 import { createEnrollmentToken } from "../db/tokens.ts";
 import { dashboardAuth } from "../auth/middleware.ts";
-import { type ReportConfig, reportIp } from "../report.ts";
+import { InvalidReportIpError, ReportingService } from "../report.ts";
 import { parseBody } from "./validate.ts";
 
 const CreateTokenRequest = z.object({
@@ -21,7 +21,7 @@ export function registerAdminRoutes(
 	db: Db,
 	adminToken: string,
 	sessionSecret: string,
-	reportConfig: ReportConfig,
+	reporting: ReportingService,
 ): void {
 	const admin = dashboardAuth(adminToken, sessionSecret);
 
@@ -43,13 +43,14 @@ export function registerAdminRoutes(
 		return reply.code(204).send();
 	});
 
-	// Manual, human-in-the-loop reporting. No-ops (reported:false) when no sink is configured.
+	// Manual reporting shares the same AbuseIPDB reservation budget as automatic reports.
 	app.post("/v1/admin/report", { preHandler: admin }, async (req, reply) => {
 		const body = parseBody(ReportRequest, req, reply);
 		if (!body) return;
 		try {
-			return reply.send(await reportIp(reportConfig, body.srcIp));
-		} catch {
+			return reply.send(await reporting.reportIp(body.srcIp));
+		} catch (error) {
+			if (!(error instanceof InvalidReportIpError)) throw error;
 			return reply.code(400).send({ error: "invalid IP" });
 		}
 	});

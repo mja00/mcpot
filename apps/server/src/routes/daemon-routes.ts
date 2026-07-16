@@ -8,9 +8,10 @@ import { daemonAuth, requireOwnDaemon } from "../auth/middleware.ts";
 import { parseBody } from "./validate.ts";
 import type { GeoService } from "../geo.ts";
 import type { EventBus } from "../events/bus.ts";
+import type { AutomaticReporter } from "../report.ts";
 
 /** Daemon-facing endpoints: enrollment, event ingest, config poll, heartbeat. */
-export function registerDaemonRoutes(app: FastifyInstance, db: Db, geo: GeoService, bus: EventBus): void {
+export function registerDaemonRoutes(app: FastifyInstance, db: Db, geo: GeoService, bus: EventBus, autoReporter: AutomaticReporter): void {
 	const auth = daemonAuth(db);
 
 	app.post("/v1/enroll", async (req, reply) => {
@@ -27,6 +28,7 @@ export function registerDaemonRoutes(app: FastifyInstance, db: Db, geo: GeoServi
 		if (!body) return;
 		const result = await ingestEvents(db, geo, req.daemonId!, req.daemonHostname ?? null, body.events);
 		for (const event of result.inserted) bus.publishConnection(event);
+		autoReporter.enqueueMany(result.inserted.flatMap((event) => (event.srcIp ? [event.srcIp] : [])));
 		return reply.send({ accepted: result.accepted, duplicates: result.duplicates });
 	});
 

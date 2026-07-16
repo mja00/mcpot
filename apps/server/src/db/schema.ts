@@ -1,4 +1,4 @@
-import { boolean, index, inet, integer, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, date, index, inet, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import type { DaemonSettings, Persona } from "@mcpot/shared";
 
 /** One row per enrolled honeypot. API keys stored hashed; machine_id makes re-enrollment idempotent. */
@@ -67,3 +67,26 @@ export const connections = pgTable(
 		index("connections_intent_ts").on(t.intent, t.receivedAt.desc()),
 	],
 );
+
+/** One AbuseIPDB reservation per source IP and UTC day; failed attempts remain auditable and consume quota. */
+export const abuseReports = pgTable(
+	"abuse_reports",
+	{
+		id: uuid("id").primaryKey().defaultRandom(),
+		srcIp: inet("src_ip").notNull(),
+		reportDay: date("report_day", { mode: "string" }).notNull(),
+		trigger: text("trigger").notNull(),
+		status: text("status").notNull().default("reserved"),
+		reservedAt: timestamp("reserved_at", { withTimezone: true }).notNull().defaultNow(),
+		completedAt: timestamp("completed_at", { withTimezone: true }),
+		httpStatus: integer("http_status"),
+		error: text("error"),
+	},
+	(t) => [uniqueIndex("abuse_reports_src_ip_day").on(t.srcIp, t.reportDay), index("abuse_reports_day").on(t.reportDay)],
+);
+
+/** Daily application-side budget for AbuseIPDB /report attempts. */
+export const abuseipdbDailyUsage = pgTable("abuseipdb_daily_usage", {
+	reportDay: date("report_day", { mode: "string" }).primaryKey(),
+	reportCount: integer("report_count").notNull().default(0),
+});

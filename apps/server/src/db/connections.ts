@@ -11,7 +11,7 @@ import type {
 import type { Db } from "./client.ts";
 import { connections, daemons } from "./schema.ts";
 import { sanitizeString, toInetOrNull } from "../sanitize.ts";
-import { type Classification, classify, RAW_HOSTNAME_RATIO, SCORE_WEIGHTS, USERNAME_SPRAY_MIN } from "../classify.ts";
+import { type Classification, type OffenderSignals, classify, RAW_HOSTNAME_RATIO, SCORE_WEIGHTS, USERNAME_SPRAY_MIN } from "../classify.ts";
 import type { GeoService } from "../geo.ts";
 
 export interface IngestResult {
@@ -316,6 +316,28 @@ export interface Offender {
 	classification: Classification;
 	countryCode: string | null;
 	asOrg: string | null;
+}
+
+export async function getOffenderSignals(db: Db, srcIp: string, windowHours: number): Promise<OffenderSignals> {
+	const since = new Date(Date.now() - windowHours * 3_600_000);
+	const hits = count();
+	const logins = sql<number>`count(*) filter (where ${connections.intent} = 'login')`;
+	const daemonsHit = countDistinct(connections.daemonId);
+	const rawHostnameHits = sql<number>`count(*) filter (where ${connections.serverAddress} ~ '^[0-9]{1,3}(\\.[0-9]{1,3}){3}$' or ${connections.serverAddress} ~ ':')`;
+	const abnormalProtoHits = sql<number>`count(*) filter (where ${connections.protocolVersion} is null or ${connections.protocolVersion} <= 0)`;
+	const distinctUsernames = sql<number>`count(distinct ${connections.username})`;
+	const [row] = await db
+		.select({ hits, logins, daemonsHit, rawHostnameHits, abnormalProtoHits, distinctUsernames })
+		.from(connections)
+		.where(and(gte(connections.receivedAt, since), eq(connections.srcIp, srcIp)));
+	return {
+		hits: Number(row?.hits ?? 0),
+		logins: Number(row?.logins ?? 0),
+		daemonsHit: Number(row?.daemonsHit ?? 0),
+		rawHostnameHits: Number(row?.rawHostnameHits ?? 0),
+		abnormalProtoHits: Number(row?.abnormalProtoHits ?? 0),
+		distinctUsernames: Number(row?.distinctUsernames ?? 0),
+	};
 }
 
 export interface OffendersPage {
