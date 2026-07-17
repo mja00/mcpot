@@ -7,6 +7,7 @@ import { createClient, createDb, type Db } from "./db/client.ts";
 import { runMigrations } from "./db/migrate.ts";
 import { purgeOldConnections } from "./retention.ts";
 import { abuseipdbChecks, abuseipdbDailyUsage, abuseReports } from "./db/schema.ts";
+import { classify } from "./classify.ts";
 import { ReportingService } from "./report.ts";
 
 // Integration tests need a real Postgres. Set TEST_DATABASE_URL to run them; otherwise they skip so
@@ -165,8 +166,15 @@ suite("central server (integration)", () => {
 		await reportingApp.ready();
 		try {
 			const { apiKey } = await enroll("auto-machine");
+			// Raw-IP probes with anomalous handshakes that never complete the ping: 30+15+10+10+5 = 70 ≥ 60.
 			const events = [1, 2, 3].map(() =>
-				makeEvent({ srcIp: "8.8.8.8", serverAddress: "8.8.8.8", protocolVersion: null }),
+				makeEvent({
+					srcIp: "8.8.8.8",
+					serverAddress: "8.8.8.8",
+					protocolVersion: null,
+					pingCompleted: false,
+					fingerprint: "protocol_error:bad_varint",
+				}),
 			);
 			const ingest = await reportingApp.inject({
 				method: "POST",
@@ -486,6 +494,63 @@ suite("central server (integration)", () => {
 
 		const bad = await app.inject({ method: "GET", url: "/v1/offenders?sortBy=bogus", headers: hdr });
 		expect(bad.statusCode).toBe(400);
+	});
+
+	it("aggregates offender signals and keeps SQL score ordering in lockstep with classify()", async () => {
+		const edgeA = await enroll("parity-a", "edge-a");
+		const edgeB = await enroll("parity-b", "edge-b");
+		const rawScanner = "198.51.100.20"; // raw-IP sweep across both daemons → 30+25+5 = 60
+		const masscan = "198.51.100.21"; // bare connects, no handshake → 15+10+5 = 30
+		const replayer = "198.51.100.22"; // hostname+protocol churn via domains → 15+10+5 = 30
+		const flooder = "198.51.100.23"; // only a synthetic rate_limited summary → 15+5 = 20
+
+		const ingest = (apiKey: string, events: ConnectionEvent[]) =>
+			app.inject({ method: "POST", url: "/v1/ingest", headers: { authorization: `Bearer ${apiKey}` }, payload: { events } });
+		await ingest(edgeA.apiKey, [
+			makeEvent({ srcIp: rawScanner }),
+			makeEvent({ srcIp: rawScanner }),
+			...[null, null, null].map(() =>
+				makeEvent({ srcIp: masscan, intent: "unknown", protocolVersion: null, serverAddress: "", pingCompleted: false, fingerprint: "handshake_timeout" }),
+			),
+			...["a.example", "b.example", "c.example"].map((serverAddress, i) =>
+				makeEvent({ srcIp: replayer, serverAddress, protocolVersion: 770 + i }),
+			),
+			makeEvent({
+				srcIp: flooder,
+				intent: "unknown",
+				protocolVersion: null,
+				serverAddress: "",
+				pingCompleted: false,
+				fingerprint: "rate_limited",
+				droppedCount: 50,
+			}),
+		]);
+		await ingest(edgeB.apiKey, [makeEvent({ srcIp: rawScanner }), makeEvent({ srcIp: rawScanner })]);
+
+		const res = await app.inject({
+			method: "GET",
+			url: "/v1/offenders?windowHours=24&sortBy=score&order=desc",
+			headers: { authorization: `Bearer ${ADMIN_TOKEN}` },
+		});
+		expect(res.statusCode).toBe(200);
+		const rows = res.json().rows;
+		expect(rows.map((r: { srcIp: string; score: number }) => [r.srcIp, r.score])).toEqual([
+			[rawScanner, 60],
+			[masscan, 30],
+			[replayer, 30],
+			[flooder, 20],
+		]);
+
+		// Drift guard: the JS-computed score must equal classify() over the row's own signals, and the
+		// SQL ORDER BY already sorted by its generated expression — so both formulas agree row-for-row.
+		for (const row of rows) expect(classify(row).score).toBe(row.score);
+
+		const byIp = new Map(rows.map((r: { srcIp: string }) => [r.srcIp, r]));
+		expect(byIp.get(rawScanner)).toMatchObject({ hits: 4, daemonsHit: 2, rawHostnameHits: 4 });
+		expect(byIp.get(masscan)).toMatchObject({ anomalyHits: 3, abnormalProtoHits: 3, rawHostnameHits: 0 });
+		expect(byIp.get(replayer)).toMatchObject({ distinctAddresses: 3, distinctProtocols: 3 });
+		// Synthetic rate_limited rows feed only the drop tally — never the anomaly/protocol tells.
+		expect(byIp.get(flooder)).toMatchObject({ rateLimitedDrops: 50, anomalyHits: 0, abnormalProtoHits: 0 });
 	});
 
 	it("overview aggregates stats, intents, tops, and a series in one call", async () => {

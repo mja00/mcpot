@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import net, { type Server, type Socket } from "node:net";
 import type { ConnectionEvent } from "@mcpot/shared";
 import { ConnectionHandler, type HandlerConfig } from "./connection-handler.ts";
@@ -20,7 +21,12 @@ export function startDaemonServer(opts: DaemonServerOptions): Server {
 		maxConcurrent: opts.maxConcurrentConnections,
 		perIpPerMinute: opts.perIpConnectionsPerMinute,
 	});
-	const sweep = setInterval(() => limiter.sweep(Date.now()), 60_000);
+	const sweep = setInterval(() => {
+		limiter.sweep(Date.now());
+		// One aggregated event per flooding IP per sweep — bounded, so a flood can't amplify the
+		// ingest pipeline it triggered while still making the dropped volume visible to scoring.
+		for (const { ip, count } of limiter.drainDrops()) opts.onEvent(rateLimitedEvent(ip, count));
+	}, 60_000);
 	sweep.unref();
 
 	const server = net.createServer((socket: Socket) => {
@@ -38,4 +44,23 @@ export function startDaemonServer(opts: DaemonServerOptions): Server {
 	server.on("close", () => clearInterval(sweep));
 	server.listen(opts.listenPort);
 	return server;
+}
+
+/** Synthetic event summarizing connections the limiter dropped for one IP since the last sweep. */
+function rateLimitedEvent(ip: string, count: number): ConnectionEvent {
+	return {
+		eventId: randomUUID(),
+		observedAt: new Date().toISOString(),
+		srcIp: ip,
+		srcPort: 0,
+		protocolVersion: null,
+		serverAddress: "",
+		serverPort: 0,
+		intent: "unknown",
+		pingCompleted: false,
+		username: null,
+		playerUuid: null,
+		fingerprint: "rate_limited",
+		droppedCount: count,
+	};
 }

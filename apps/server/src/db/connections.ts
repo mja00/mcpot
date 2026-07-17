@@ -1,4 +1,4 @@
-import { and, asc, count, countDistinct, desc, eq, gte, inArray, isNotNull, lt, ne, sql } from "drizzle-orm";
+import { and, asc, count, countDistinct, desc, eq, gte, inArray, isNotNull, lt, ne, type SQL, sql } from "drizzle-orm";
 import type {
 	ConnectionEvent,
 	OffenderSortBy,
@@ -11,7 +11,7 @@ import type {
 import type { Db } from "./client.ts";
 import { abuseipdbChecks, connections, daemons } from "./schema.ts";
 import { sanitizeString, toInetOrNull } from "../sanitize.ts";
-import { type Classification, type OffenderSignals, classify, RAW_HOSTNAME_RATIO, SCORE_WEIGHTS, USERNAME_SPRAY_MIN } from "../classify.ts";
+import { type Classification, type OffenderSignals, type ScoreTermOp, classify, SCORE_TERMS } from "../classify.ts";
 import type { GeoService } from "../geo.ts";
 
 export interface IngestResult {
@@ -54,6 +54,7 @@ export async function ingestEvents(
 			username: sanitizeString(e.username),
 			playerUuid: e.playerUuid,
 			fingerprint: sanitizeString(e.fingerprint),
+			droppedCount: e.droppedCount ?? null,
 			...geo.lookup(srcIp),
 		});
 	}
@@ -311,6 +312,11 @@ export interface Offender {
 	rawHostnameHits: number;
 	abnormalProtoHits: number;
 	distinctUsernames: number;
+	anomalyHits: number;
+	incompletePingHits: number;
+	distinctAddresses: number;
+	distinctProtocols: number;
+	rateLimitedDrops: number;
 	lastSeen: Date;
 	score: number;
 	classification: Classification;
@@ -333,18 +339,42 @@ export interface Offender {
 	} | null;
 }
 
-export async function getOffenderSignals(db: Db, srcIp: string, windowHours: number): Promise<OffenderSignals> {
-	const since = new Date(Date.now() - windowHours * 3_600_000);
-	const hits = count();
-	const logins = sql<number>`count(*) filter (where ${connections.intent} = 'login')`;
-	const daemonsHit = countDistinct(connections.daemonId);
-	const rawHostnameHits = sql<number>`count(*) filter (where ${connections.serverAddress} ~ '^[0-9]{1,3}(\\.[0-9]{1,3}){3}$' or ${connections.serverAddress} ~ ':')`;
-	const abnormalProtoHits = sql<number>`count(*) filter (where ${connections.protocolVersion} is null or ${connections.protocolVersion} <= 0)`;
-	const distinctUsernames = sql<number>`count(distinct ${connections.username})`;
-	const [row] = await db
-		.select({ hits, logins, daemonsHit, rawHostnameHits, abnormalProtoHits, distinctUsernames })
-		.from(connections)
-		.where(and(gte(connections.receivedAt, since), eq(connections.srcIp, srcIp)));
+/**
+ * One SQL aggregate per OffenderSignals field, defined once so getOffenderSignals and getOffenders
+ * can't diverge. Synthetic `rate_limited` rows only feed rateLimitedDrops — they're excluded from the
+ * anomaly/protocol tells so a flood isn't double-counted.
+ */
+function offenderSignalExprs(): Record<keyof OffenderSignals, SQL<number>> {
+	return {
+		hits: sql<number>`count(*)`,
+		logins: sql<number>`count(*) filter (where ${connections.intent} = 'login')`,
+		daemonsHit: sql<number>`count(distinct ${connections.daemonId})`,
+		// Raw IPv4 literal, or an IPv6 literal (hex/colons only) — a domain never matches either.
+		rawHostnameHits: sql<number>`count(*) filter (where ${connections.serverAddress} ~ '^[0-9]{1,3}(\\.[0-9]{1,3}){3}$' or (${connections.serverAddress} ~* '^[0-9a-f:]+$' and ${connections.serverAddress} like '%:%'))`,
+		abnormalProtoHits: sql<number>`count(*) filter (where (${connections.protocolVersion} is null or ${connections.protocolVersion} <= 0) and ${connections.fingerprint} is distinct from 'rate_limited')`,
+		distinctUsernames: sql<number>`count(distinct ${connections.username})`,
+		anomalyHits: sql<number>`count(*) filter (where ${connections.fingerprint} is not null and ${connections.fingerprint} not like 'rate_limited%')`,
+		incompletePingHits: sql<number>`count(*) filter (where ${connections.intent} = 'status' and not ${connections.pingCompleted})`,
+		distinctAddresses: sql<number>`count(distinct nullif(${connections.serverAddress}, ''))`,
+		distinctProtocols: sql<number>`count(distinct ${connections.protocolVersion}) filter (where ${connections.protocolVersion} > 0)`,
+		rateLimitedDrops: sql<number>`coalesce(sum(${connections.droppedCount}) filter (where ${connections.fingerprint} = 'rate_limited'), 0)`,
+	};
+}
+
+/**
+ * ORDER BY-able score, generated from SCORE_TERMS so the DB ordering always matches classify().
+ * Grouped rows always have count(*) >= 1, so the ratio division is safe.
+ */
+function offenderScoreExpr(exprs: Record<keyof OffenderSignals, SQL<number>>): SQL<number> {
+	const ops: Record<ScoreTermOp, SQL> = { gt: sql`>`, gte: sql`>=`, eq: sql`=` };
+	const cases = SCORE_TERMS.map((term) => {
+		const value = term.signal === "rawHostnameRatio" ? sql`(${exprs.rawHostnameHits})::float / count(*)` : exprs[term.signal];
+		return sql`(case when ${value} ${ops[term.op]} ${term.threshold} then ${term.weight} else 0 end)`;
+	});
+	return sql<number>`least(100, ${sql.join(cases, sql` + `)})`;
+}
+
+function toOffenderSignals(row: Partial<Record<keyof OffenderSignals, unknown>> | undefined): OffenderSignals {
 	return {
 		hits: Number(row?.hits ?? 0),
 		logins: Number(row?.logins ?? 0),
@@ -352,7 +382,21 @@ export async function getOffenderSignals(db: Db, srcIp: string, windowHours: num
 		rawHostnameHits: Number(row?.rawHostnameHits ?? 0),
 		abnormalProtoHits: Number(row?.abnormalProtoHits ?? 0),
 		distinctUsernames: Number(row?.distinctUsernames ?? 0),
+		anomalyHits: Number(row?.anomalyHits ?? 0),
+		incompletePingHits: Number(row?.incompletePingHits ?? 0),
+		distinctAddresses: Number(row?.distinctAddresses ?? 0),
+		distinctProtocols: Number(row?.distinctProtocols ?? 0),
+		rateLimitedDrops: Number(row?.rateLimitedDrops ?? 0),
 	};
+}
+
+export async function getOffenderSignals(db: Db, srcIp: string, windowHours: number): Promise<OffenderSignals> {
+	const since = new Date(Date.now() - windowHours * 3_600_000);
+	const [row] = await db
+		.select(offenderSignalExprs())
+		.from(connections)
+		.where(and(gte(connections.receivedAt, since), eq(connections.srcIp, srcIp)));
+	return toOffenderSignals(row);
 }
 
 export interface OffendersPage {
@@ -370,39 +414,22 @@ export interface OffendersOpts {
 
 /**
  * One sorted page of source IPs over a rolling window, with a scanner classification. Signals are
- * computed in one aggregation pass and scored in JS; a SQL mirror of classify() (same constants)
- * exists only so `score` is orderable at the DB layer. `total` counts all groups pre-LIMIT.
+ * computed in one aggregation pass and scored in JS; the ORDER BY score expression is generated from
+ * the same SCORE_TERMS table classify() uses. `total` counts all groups pre-LIMIT.
  */
 export async function getOffenders(db: Db, opts: OffendersOpts): Promise<OffendersPage> {
 	const since = new Date(Date.now() - opts.windowHours * 3_600_000);
-	const hits = count();
-	const logins = sql<number>`count(*) filter (where ${connections.intent} = 'login')`;
-	const daemonsHit = countDistinct(connections.daemonId);
+	const exprs = offenderSignalExprs();
 	const lastSeen = sql<Date>`max(${connections.receivedAt})`;
-	// A raw-IP hostname means the client connected by IP literal, not a domain — a scanner tell.
-	const rawHostnameHits = sql<number>`count(*) filter (where ${connections.serverAddress} ~ '^[0-9]{1,3}(\\.[0-9]{1,3}){3}$' or ${connections.serverAddress} ~ ':')`;
-	const abnormalProtoHits = sql<number>`count(*) filter (where ${connections.protocolVersion} is null or ${connections.protocolVersion} <= 0)`;
-	const distinctUsernames = sql<number>`count(distinct ${connections.username})`;
-	// SQL mirror of classify() for ORDER BY only; grouped rows always have count(*) >= 1, so the division is safe.
-	const scoreExpr = sql<number>`least(100,
-		(case when (${rawHostnameHits})::float / count(*) > ${RAW_HOSTNAME_RATIO} then ${SCORE_WEIGHTS.rawHostname} else 0 end)
-		+ (case when ${daemonsHit} > 1 then ${SCORE_WEIGHTS.multiDaemon} else 0 end)
-		+ (case when ${abnormalProtoHits} > 0 then ${SCORE_WEIGHTS.abnormalProto} else 0 end)
-		+ (case when ${logins} = 0 then ${SCORE_WEIGHTS.reconOnly} else 0 end)
-		+ (case when ${distinctUsernames} >= ${USERNAME_SPRAY_MIN} then ${SCORE_WEIGHTS.usernameSpray} else 0 end))`;
+	const scoreExpr = offenderScoreExpr(exprs);
 
-	const sortExpr = { lastSeen, hits, logins, daemonsHit, score: scoreExpr }[opts.sortBy];
+	const sortExpr = { lastSeen, hits: exprs.hits, logins: exprs.logins, daemonsHit: exprs.daemonsHit, score: scoreExpr }[opts.sortBy];
 	const dir = opts.order === "asc" ? asc : desc;
 	const rows = await db
 		.select({
+			...exprs,
 			srcIp: connections.srcIp,
-			hits,
-			logins,
-			daemonsHit,
 			lastSeen,
-			rawHostnameHits,
-			abnormalProtoHits,
-			distinctUsernames,
 			// Functionally dependent on the grouped src_ip; max() is just the cheap way to select it.
 			countryCode: sql<string | null>`max(${connections.countryCode})`,
 			asOrg: sql<string | null>`max(${connections.asOrg})`,
@@ -442,14 +469,7 @@ export async function getOffenders(db: Db, opts: OffendersOpts): Promise<Offende
 		: [];
 	const abuseChecksByIp = new Map(abuseChecks.map(({ srcIp, ...rest }) => [srcIp, rest]));
 	const mapped = rows.map((r) => {
-		const signals = {
-			hits: Number(r.hits),
-			logins: Number(r.logins),
-			daemonsHit: Number(r.daemonsHit),
-			rawHostnameHits: Number(r.rawHostnameHits),
-			abnormalProtoHits: Number(r.abnormalProtoHits),
-			distinctUsernames: Number(r.distinctUsernames),
-		};
+		const signals = toOffenderSignals(r);
 		const { score, label } = classify(signals);
 		const check = r.srcIp ? abuseChecksByIp.get(r.srcIp) : undefined;
 		return {

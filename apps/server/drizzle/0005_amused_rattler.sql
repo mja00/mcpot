@@ -1,0 +1,1 @@
+ALTER TABLE "connections" ADD COLUMN "dropped_count" integer;
