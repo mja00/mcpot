@@ -1,7 +1,7 @@
 import { lt, sql } from "drizzle-orm";
 import { Cron } from "croner";
 import type { Db } from "./db/client.ts";
-import { connections } from "./db/schema.ts";
+import { abuseipdbChecks, abuseReports, abuseipdbDailyUsage, connections } from "./db/schema.ts";
 
 // PII (source IPs) can't be kept forever, and a busy honeypot grows the raw table without bound. A
 // scheduled purge enforces a retention window. A Postgres advisory lock keeps concurrent server
@@ -15,6 +15,10 @@ export async function purgeOldConnections(db: Db, retentionDays: number): Promis
 		const [lock] = await tx.execute(sql`select pg_try_advisory_xact_lock(${PURGE_LOCK_KEY}) as ok`);
 		if (!(lock as { ok: boolean }).ok) return 0; // another replica holds the lock this run
 		const deleted = await tx.delete(connections).where(lt(connections.receivedAt, cutoff)).returning({ id: connections.eventId });
+		const reportDay = cutoff.toISOString().slice(0, 10);
+		await tx.delete(abuseReports).where(lt(abuseReports.reportDay, reportDay));
+		await tx.delete(abuseipdbDailyUsage).where(lt(abuseipdbDailyUsage.reportDay, reportDay));
+		await tx.delete(abuseipdbChecks).where(lt(abuseipdbChecks.attemptedAt, cutoff));
 		return deleted.length;
 	});
 }

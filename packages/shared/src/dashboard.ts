@@ -106,6 +106,23 @@ export type OffenderSortBy = z.infer<typeof OffenderSortBy>;
 export const SortOrder = z.enum(["asc", "desc"]);
 export type SortOrder = z.infer<typeof SortOrder>;
 
+export const AbuseCheck = z.object({
+	status: z.enum(["pending", "succeeded", "failed"]),
+	checkedAt: z.string().nullable(),
+	isPublic: z.boolean().nullable(),
+	isWhitelisted: z.boolean().nullable(),
+	abuseConfidenceScore: z.number().nullable(),
+	countryCode: z.string().nullable(),
+	usageType: z.string().nullable(),
+	isp: z.string().nullable(),
+	domain: z.string().nullable(),
+	isTor: z.boolean().nullable(),
+	totalReports: z.number().nullable(),
+	numDistinctUsers: z.number().nullable(),
+	lastReportedAt: z.string().nullable(),
+});
+export type AbuseCheck = z.infer<typeof AbuseCheck>;
+
 export const Offender = z.object({
 	srcIp: z.string().nullable(),
 	hits: z.number().int(),
@@ -119,6 +136,7 @@ export const Offender = z.object({
 	classification: OffenderClassification,
 	countryCode: z.string().nullable(),
 	asOrg: z.string().nullable(),
+	abuseCheck: AbuseCheck.nullable(),
 });
 export type Offender = z.infer<typeof Offender>;
 

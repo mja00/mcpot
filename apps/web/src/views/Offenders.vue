@@ -120,6 +120,7 @@ onMounted(() => void load());
 								</UiTooltip>
 								<span class="ml-1">{{ indicator("score") }}</span>
 							</th>
+							<th>AbuseIPDB</th>
 							<th class="cursor-pointer select-none" :aria-sort="ariaSort('hits')" @click="setSort('hits')">
 								Hits<span class="ml-1">{{ indicator("hits") }}</span>
 							</th>
@@ -149,6 +150,16 @@ onMounted(() => void load());
 							<td class="max-w-44 truncate text-ink-secondary">{{ o.asOrg ?? "—" }}</td>
 							<td><UiBadge :tone="classTone[o.classification]">{{ o.classification }}</UiBadge></td>
 							<td class="font-mono" :class="o.score >= 60 ? 'text-critical' : o.score >= 30 ? 'text-warn' : 'text-ink-secondary'">{{ o.score }}</td>
+							<td class="font-mono text-ink-secondary">
+								<template v-if="o.abuseCheck?.status === 'succeeded'">
+									<span :class="(o.abuseCheck.abuseConfidenceScore ?? 0) >= 60 ? 'text-critical' : 'text-ink-secondary'">
+										{{ o.abuseCheck.abuseConfidenceScore ?? "—" }}%
+									</span>
+									<span class="ml-1 text-xs">({{ o.abuseCheck.totalReports ?? 0 }})</span>
+								</template>
+								<span v-else-if="o.abuseCheck" class="text-xs text-ink-muted">{{ o.abuseCheck.status }}</span>
+								<span v-else>—</span>
+							</td>
 							<td class="font-mono text-ink-secondary">{{ o.hits }}</td>
 							<td class="font-mono" :class="o.logins > 0 ? 'text-accent' : 'text-ink-secondary'">{{ o.logins }}</td>
 							<td class="font-mono text-ink-secondary">{{ o.daemonsHit }}</td>
@@ -158,7 +169,7 @@ onMounted(() => void load());
 							</td>
 						</tr>
 						<tr v-if="offenders.length === 0">
-							<td colspan="9" class="px-3 py-6 text-center text-ink-muted">no offenders in this window</td>
+							<td colspan="10" class="px-3 py-6 text-center text-ink-muted">no offenders in this window</td>
 						</tr>
 					</tbody>
 				</table>

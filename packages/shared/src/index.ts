@@ -17,6 +17,7 @@ export {
 	RecentConnection,
 	DaemonListItem,
 	Offender,
+	AbuseCheck,
 	OffenderClassification,
 	OffenderSortBy,
 	SortOrder,
