@@ -341,34 +341,35 @@ export interface Offender {
 
 /**
  * One SQL aggregate per OffenderSignals field, defined once so getOffenderSignals and getOffenders
- * can't diverge. Synthetic `rate_limited` rows only feed rateLimitedDrops — they're excluded from the
- * anomaly/protocol tells so a flood isn't double-counted.
+ * can't diverge. Synthetic `rate_limited` rows only feed rateLimitedDrops so summary records cannot
+ * dilute ratios or inflate ordinary connection signals.
  */
 function offenderSignalExprs(): Record<keyof OffenderSignals, SQL<number>> {
+	const observed = sql`${connections.fingerprint} is distinct from 'rate_limited'`;
 	return {
-		hits: sql<number>`count(*)`,
-		logins: sql<number>`count(*) filter (where ${connections.intent} = 'login')`,
-		daemonsHit: sql<number>`count(distinct ${connections.daemonId})`,
+		hits: sql<number>`count(*) filter (where ${observed})`,
+		logins: sql<number>`count(*) filter (where ${observed} and ${connections.intent} = 'login')`,
+		daemonsHit: sql<number>`count(distinct ${connections.daemonId}) filter (where ${observed})`,
 		// Raw IPv4 literal, or an IPv6 literal (hex/colons only) — a domain never matches either.
-		rawHostnameHits: sql<number>`count(*) filter (where ${connections.serverAddress} ~ '^[0-9]{1,3}(\\.[0-9]{1,3}){3}$' or (${connections.serverAddress} ~* '^[0-9a-f:]+$' and ${connections.serverAddress} like '%:%'))`,
-		abnormalProtoHits: sql<number>`count(*) filter (where (${connections.protocolVersion} is null or ${connections.protocolVersion} <= 0) and ${connections.fingerprint} is distinct from 'rate_limited')`,
-		distinctUsernames: sql<number>`count(distinct ${connections.username})`,
-		anomalyHits: sql<number>`count(*) filter (where ${connections.fingerprint} is not null and ${connections.fingerprint} not like 'rate_limited%')`,
-		incompletePingHits: sql<number>`count(*) filter (where ${connections.intent} = 'status' and not ${connections.pingCompleted})`,
-		distinctAddresses: sql<number>`count(distinct nullif(${connections.serverAddress}, ''))`,
-		distinctProtocols: sql<number>`count(distinct ${connections.protocolVersion}) filter (where ${connections.protocolVersion} > 0)`,
+		rawHostnameHits: sql<number>`count(*) filter (where ${observed} and (${connections.serverAddress} ~ '^[0-9]{1,3}(\\.[0-9]{1,3}){3}$' or (${connections.serverAddress} ~* '^[0-9a-f:]+$' and ${connections.serverAddress} like '%:%')))`,
+		abnormalProtoHits: sql<number>`count(*) filter (where ${observed} and (${connections.protocolVersion} is null or ${connections.protocolVersion} <= 0))`,
+		distinctUsernames: sql<number>`count(distinct ${connections.username}) filter (where ${observed})`,
+		anomalyHits: sql<number>`count(*) filter (where ${observed} and ${connections.fingerprint} is not null)`,
+		incompletePingHits: sql<number>`count(*) filter (where ${observed} and ${connections.intent} = 'status' and not ${connections.pingCompleted})`,
+		distinctAddresses: sql<number>`count(distinct nullif(${connections.serverAddress}, '')) filter (where ${observed})`,
+		distinctProtocols: sql<number>`count(distinct ${connections.protocolVersion}) filter (where ${observed} and ${connections.protocolVersion} > 0)`,
 		rateLimitedDrops: sql<number>`coalesce(sum(${connections.droppedCount}) filter (where ${connections.fingerprint} = 'rate_limited'), 0)`,
 	};
 }
 
 /**
  * ORDER BY-able score, generated from SCORE_TERMS so the DB ordering always matches classify().
- * Grouped rows always have count(*) >= 1, so the ratio division is safe.
+ * Groups containing only synthetic summaries have zero ordinary hits, so nullif keeps the ratio safe.
  */
 function offenderScoreExpr(exprs: Record<keyof OffenderSignals, SQL<number>>): SQL<number> {
 	const ops: Record<ScoreTermOp, SQL> = { gt: sql`>`, gte: sql`>=`, eq: sql`=` };
 	const cases = SCORE_TERMS.map((term) => {
-		const value = term.signal === "rawHostnameRatio" ? sql`(${exprs.rawHostnameHits})::float / count(*)` : exprs[term.signal];
+		const value = term.signal === "rawHostnameRatio" ? sql`(${exprs.rawHostnameHits})::float / nullif(${exprs.hits}, 0)` : exprs[term.signal];
 		return sql`(case when ${value} ${ops[term.op]} ${term.threshold} then ${term.weight} else 0 end)`;
 	});
 	return sql<number>`least(100, ${sql.join(cases, sql` + `)})`;

@@ -6,7 +6,11 @@
 export interface LimiterOptions {
 	maxConcurrent: number;
 	perIpPerMinute: number;
+	/** Safety bound for distinct rejected IPs retained until the next telemetry drain. */
+	maxTrackedDroppedIps?: number;
 }
+
+const DEFAULT_MAX_TRACKED_DROPPED_IPS = 1024;
 
 export class ConnectionLimiter {
 	private active = 0;
@@ -36,9 +40,16 @@ export class ConnectionLimiter {
 	}
 
 	// Dropped connections would otherwise vanish from telemetry, under-counting exactly the floods
-	// that trip the limiter — so we tally them and let the caller drain one summary per sweep.
+	// that trip the limiter. Bound cardinality so a distributed flood cannot turn telemetry itself
+	// into an unbounded memory allocation or event burst.
 	private recordDrop(ip: string): void {
-		this.dropped.set(ip, (this.dropped.get(ip) ?? 0) + 1);
+		const count = this.dropped.get(ip);
+		if (count !== undefined) {
+			this.dropped.set(ip, count + 1);
+			return;
+		}
+		if (this.dropped.size >= (this.opts.maxTrackedDroppedIps ?? DEFAULT_MAX_TRACKED_DROPPED_IPS)) return;
+		this.dropped.set(ip, 1);
 	}
 
 	/** Take (and clear) the per-IP counts of connections dropped since the last drain. */

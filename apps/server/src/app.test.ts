@@ -526,6 +526,17 @@ suite("central server (integration)", () => {
 			}),
 		]);
 		await ingest(edgeB.apiKey, [makeEvent({ srcIp: rawScanner }), makeEvent({ srcIp: rawScanner })]);
+		await ingest(edgeA.apiKey, [
+			makeEvent({
+				srcIp: rawScanner,
+				intent: "unknown",
+				protocolVersion: null,
+				serverAddress: "",
+				pingCompleted: false,
+				fingerprint: "rate_limited",
+				droppedCount: 50,
+			}),
+		]);
 
 		const res = await app.inject({
 			method: "GET",
@@ -535,7 +546,7 @@ suite("central server (integration)", () => {
 		expect(res.statusCode).toBe(200);
 		const rows = res.json().rows;
 		expect(rows.map((r: { srcIp: string; score: number }) => [r.srcIp, r.score])).toEqual([
-			[rawScanner, 60],
+			[rawScanner, 75],
 			[masscan, 30],
 			[replayer, 30],
 			[flooder, 20],
@@ -546,11 +557,11 @@ suite("central server (integration)", () => {
 		for (const row of rows) expect(classify(row).score).toBe(row.score);
 
 		const byIp = new Map(rows.map((r: { srcIp: string }) => [r.srcIp, r]));
-		expect(byIp.get(rawScanner)).toMatchObject({ hits: 4, daemonsHit: 2, rawHostnameHits: 4 });
+		expect(byIp.get(rawScanner)).toMatchObject({ hits: 4, daemonsHit: 2, rawHostnameHits: 4, rateLimitedDrops: 50 });
 		expect(byIp.get(masscan)).toMatchObject({ anomalyHits: 3, abnormalProtoHits: 3, rawHostnameHits: 0 });
 		expect(byIp.get(replayer)).toMatchObject({ distinctAddresses: 3, distinctProtocols: 3 });
-		// Synthetic rate_limited rows feed only the drop tally — never the anomaly/protocol tells.
-		expect(byIp.get(flooder)).toMatchObject({ rateLimitedDrops: 50, anomalyHits: 0, abnormalProtoHits: 0 });
+		// Synthetic rate_limited rows feed only the drop tally — never ordinary hit or scanner signals.
+		expect(byIp.get(flooder)).toMatchObject({ hits: 0, daemonsHit: 0, rateLimitedDrops: 50, anomalyHits: 0, abnormalProtoHits: 0 });
 	});
 
 	it("overview aggregates stats, intents, tops, and a series in one call", async () => {
