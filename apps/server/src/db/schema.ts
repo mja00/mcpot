@@ -55,6 +55,8 @@ export const connections = pgTable(
 		username: text("username"),
 		playerUuid: text("player_uuid"),
 		fingerprint: text("fingerprint"),
+		// Only on synthetic `rate_limited` events: how many connections the daemon's limiter dropped for this IP in the window.
+		droppedCount: integer("dropped_count"),
 		// GeoLite2 enrichment at ingest time; null when the mmdb files aren't mounted (dev/CI).
 		countryCode: text("country_code"),
 		asn: integer("asn"),

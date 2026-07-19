@@ -22,5 +22,7 @@ export const ConnectionEvent = z.object({
 	username: z.string().max(16).nullable(),
 	playerUuid: z.string().max(36).nullable(),
 	fingerprint: z.string().max(256).nullable(),
+	/** Only on synthetic `rate_limited` events: connections the daemon's limiter dropped for this IP since the last sweep. */
+	droppedCount: z.number().int().min(1).nullable().optional(),
 });
 export type ConnectionEvent = z.infer<typeof ConnectionEvent>;

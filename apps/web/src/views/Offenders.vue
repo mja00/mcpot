@@ -74,6 +74,20 @@ function setSort(col: OffenderSortBy): void {
 	}
 }
 
+/** Human-readable list of the scanner signals present for a row, for the score tooltip. */
+function signalSummary(o: Offender): string {
+	const parts: string[] = [];
+	if (o.rawHostnameHits > 0) parts.push(`${o.rawHostnameHits} raw-IP hostnames`);
+	if (o.anomalyHits > 0) parts.push(`${o.anomalyHits} protocol anomalies`);
+	if (o.abnormalProtoHits > 0) parts.push(`${o.abnormalProtoHits} abnormal versions`);
+	if (o.incompletePingHits > 0) parts.push(`${o.incompletePingHits} incomplete pings`);
+	if (o.distinctUsernames >= 2) parts.push(`${o.distinctUsernames} usernames`);
+	if (o.distinctAddresses >= 2) parts.push(`${o.distinctAddresses} hostnames`);
+	if (o.distinctProtocols >= 2) parts.push(`${o.distinctProtocols} protocol versions`);
+	if (o.rateLimitedDrops > 0) parts.push(`${o.rateLimitedDrops} rate-limited drops`);
+	return parts.length ? parts.join(" · ") : "no scanner signals";
+}
+
 function indicator(col: OffenderSortBy): string {
 	return sortBy.value === col ? (order.value === "desc" ? "▼" : "▲") : "";
 }
@@ -115,7 +129,7 @@ onMounted(() => void load());
 							<th>Network</th>
 							<th>Class</th>
 							<th class="cursor-pointer select-none" :aria-sort="ariaSort('score')" @click="setSort('score')">
-								<UiTooltip content="0–100 from scanner signals: raw-IP hostnames, abnormal protocol versions, distinct usernames, daemons hit">
+								<UiTooltip content="0–100 from scanner signals: raw-IP hostnames, daemons hit, protocol anomalies, username/hostname/version churn, incomplete pings, rate-limited floods">
 									<span>Score</span>
 								</UiTooltip>
 								<span class="ml-1">{{ indicator("score") }}</span>
@@ -149,7 +163,9 @@ onMounted(() => void load());
 							</td>
 							<td class="max-w-44 truncate text-ink-secondary">{{ o.asOrg ?? "—" }}</td>
 							<td><UiBadge :tone="classTone[o.classification]">{{ o.classification }}</UiBadge></td>
-							<td class="font-mono" :class="o.score >= 60 ? 'text-critical' : o.score >= 30 ? 'text-warn' : 'text-ink-secondary'">{{ o.score }}</td>
+							<td class="font-mono" :class="o.score >= 60 ? 'text-critical' : o.score >= 30 ? 'text-warn' : 'text-ink-secondary'">
+									<UiTooltip :content="signalSummary(o)"><span>{{ o.score }}</span></UiTooltip>
+								</td>
 							<td class="font-mono text-ink-secondary">
 								<template v-if="o.abuseCheck?.status === 'succeeded'">
 									<span :class="(o.abuseCheck.abuseConfidenceScore ?? 0) >= 60 ? 'text-critical' : 'text-ink-secondary'">
